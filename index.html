@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Workshop Wonder — Prototype</title>
+  <style>
+    :root{--ink:#2d2118;--paper:#ead9b8;--card:#b9783d;--wood:#7a4d2b;--brass:#c49a45;--glow:#ffd978;--wall:#92775f;--shadow:rgba(30,18,10,.35)}
+    *{box-sizing:border-box} body{margin:0;background:#211b17;color:var(--ink);font-family:Georgia,serif;overflow:hidden}
+    .room{position:relative;width:100vw;height:100vh;min-height:650px;background:linear-gradient(115deg,#514237 0 43%,#6c5848 70%,#3d332b 100%);perspective:1000px}
+    .wall-lines{position:absolute;inset:0;opacity:.18;background:repeating-linear-gradient(0deg,transparent 0 42px,#2a211b 43px 44px)}
+    .window{position:absolute;right:6vw;top:8vh;width:22vw;height:42vh;border:16px solid #513623;background:linear-gradient(145deg,#bcd4d5,#f1d7a5 66%,#d3a05b);box-shadow:inset 0 0 0 4px #a87845,0 15px 40px #2b1c12}
+    .window:before,.window:after{content:"";position:absolute;background:#5d402b}.window:before{left:48%;top:0;bottom:0;width:7px}.window:after{top:48%;left:0;right:0;height:7px}
+    .distant-light{position:absolute;right:18%;top:27%;width:18px;height:18px;border-radius:50%;background:#5d4930;box-shadow:0 0 0 0 transparent;transition:1.2s}
+    .distant-light.on{background:#ffe18c;box-shadow:0 0 15px 6px #ffd76e,0 0 55px 18px rgba(255,215,110,.75)}
+    .sunbeam{position:absolute;right:18vw;top:43vh;width:35vw;height:40vh;background:linear-gradient(145deg,rgba(255,224,151,.28),transparent 70%);clip-path:polygon(28% 0,100% 0,62% 100%,0 100%);pointer-events:none;opacity:.65;transition:1s}.sunbeam.on{opacity:1;filter:brightness(1.4)}
+    .bench{position:absolute;left:9vw;right:22vw;bottom:10vh;height:20vh;background:linear-gradient(#9c6538,#684125);border-top:16px solid #ba824f;box-shadow:0 28px 35px var(--shadow)}
+    .bench:before,.bench:after{content:"";position:absolute;bottom:-25vh;width:7vw;height:25vh;background:#59402e}.bench:before{left:6%}.bench:after{right:7%}
+    .machine{position:absolute;left:18vw;bottom:29vh;width:48vw;height:42vh;filter:drop-shadow(0 12px 8px rgba(25,15,8,.45))}
+    .backboard{position:absolute;left:5%;bottom:0;width:88%;height:88%;background:#b8793e;border:5px solid #7b4a29;clip-path:polygon(2% 8%,92% 0,100% 92%,8% 100%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.1)}
+    .backboard:after{content:"prototype 7 — try again";position:absolute;right:8%;top:8%;font:italic 14px 'Comic Sans MS',cursive;transform:rotate(-4deg);color:#51331f}
+    .wheel{position:absolute;left:37%;top:32%;width:138px;height:138px;border:15px solid var(--brass);border-radius:50%;box-shadow:inset 0 0 0 5px #6d552d;transition:transform 1.5s cubic-bezier(.2,.7,.2,1)}
+    .wheel:before,.wheel:after{content:"";position:absolute;left:50%;top:50%;background:#735b31;transform:translate(-50%,-50%)}.wheel:before{width:112px;height:9px}.wheel:after{height:112px;width:9px}.wheel.spin{transform:rotate(720deg)}
+    .pulley{position:absolute;left:60%;top:11%;width:64px;height:64px;border:10px solid #8e713d;border-radius:50%;background:#c4a76a}
+    .cord{position:absolute;left:64%;top:23%;width:4px;height:160px;background:#d8c39d;transform-origin:top;transition:.5s}.cord.loose{transform:rotate(12deg);height:125px}.cord.threaded{height:190px}
+    .cup{position:absolute;left:59%;top:68%;width:78px;height:62px;background:#9b6237;border:4px solid #684020;clip-path:polygon(8% 0,92% 0,78% 100%,22% 100%);transition:1.4s}.cup.lift{top:37%}
+    .ramp{position:absolute;left:4%;top:57%;width:205px;height:16px;background:#835130;border:3px solid #54331f;transform-origin:left center;transition:.45s;box-shadow:0 5px 0 rgba(0,0,0,.2)}
+    .ramp.low{transform:rotate(5deg)}.ramp.good{transform:rotate(-8deg)}.ramp.high{transform:rotate(-20deg)}
+    .marble{position:absolute;left:7%;top:49%;width:27px;height:27px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,#7fa3a7 35%,#273c43 78%);opacity:0;transition:none;z-index:4}.marble.placed{opacity:1}.marble.roll-good{animation:goodRoll 1.35s ease-in forwards}.marble.roll-miss{animation:missRoll 1.15s ease-in forwards}
+    @keyframes goodRoll{0%{left:7%;top:49%}55%{left:36%;top:58%}80%{left:47%;top:61%}100%{left:49%;top:65%}}
+    @keyframes missRoll{0%{left:7%;top:49%}70%{left:35%;top:72%}100%{left:31%;top:87%;opacity:.2}}
+    .lever{position:absolute;left:48%;top:69%;width:95px;height:13px;background:#765a35;transform-origin:left;transition:.35s}.lever.hit{transform:rotate(24deg)}
+    .filament{position:absolute;left:72%;top:28%;width:90px;height:90px;border:5px dashed #7d6034;border-radius:50%;opacity:.35;transition:.8s}.filament.on{opacity:1;border-color:#ffd878;box-shadow:0 0 22px #ffc74e;transform:scale(1.08)}
+    .note{position:absolute;left:4%;top:8%;width:145px;padding:12px;background:#e6d2a5;transform:rotate(-4deg);box-shadow:3px 6px 9px rgba(0,0,0,.3);font:16px 'Comic Sans MS',cursive}.note:before{content:"";position:absolute;top:-8px;left:48px;width:55px;height:16px;background:rgba(213,190,138,.75);transform:rotate(5deg)}
+    .controls{position:absolute;left:3vw;bottom:3vh;right:3vw;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:13px 15px;background:rgba(32,24,18,.88);border:1px solid #80664f;color:#f0dfbd;box-shadow:0 8px 25px rgba(0,0,0,.4)}
+    button{border:1px solid #b7925a;background:#6f4b2d;color:#f9e8c7;padding:10px 14px;font:600 14px Georgia,serif;cursor:pointer;box-shadow:inset 0 1px rgba(255,255,255,.18)}button:hover:not(:disabled){background:#8d623c}button:disabled{opacity:.38;cursor:not-allowed}.status{margin-left:auto;max-width:380px;font-style:italic;color:#f1dba9}
+    .question{position:absolute;left:3vw;top:4vh;width:210px;background:#ddc798;padding:18px 16px;box-shadow:5px 8px 16px rgba(0,0,0,.35);transform:rotate(-2deg);transition:.4s;z-index:8}.question.closed{height:47px;overflow:hidden;cursor:pointer}.question.used{opacity:.5}.question h2{font-size:15px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.08em}.question p{font-size:20px;line-height:1.25;margin:0}.question small{display:block;margin-top:12px}
+    .title{position:absolute;right:3vw;bottom:4vh;color:#f1dfbb;text-align:right;text-shadow:0 2px 4px #000}.title h1{margin:0;font-weight:normal;font-size:clamp(24px,3vw,48px)}.title p{margin:5px 0;font-style:italic}
+    .dust{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle,rgba(255,238,196,.6) 0 1px,transparent 1.5px);background-size:87px 71px;animation:dust 18s linear infinite;opacity:.25}@keyframes dust{to{background-position:100px 150px}}
+    @media(max-width:800px){.machine{left:4vw;width:78vw}.window{right:2vw;width:30vw}.title{display:none}.status{width:100%;margin-left:0}.controls{bottom:1vh}.question{left:2vw;top:2vh}}
+  </style>
+</head>
+<body>
+  <main class="room" aria-label="Handmade workshop prototype">
+    <div class="wall-lines"></div><div class="dust"></div>
+    <div class="window"><div id="distantLight" class="distant-light" title="A distant workshop light"></div></div>
+    <div id="sunbeam" class="sunbeam"></div>
+    <section class="question closed" id="questionCard" tabindex="0"><h2>Question Card</h2><p>What changes when you adjust one thing at a time?</p><small>Click once to open. It will not return after use.</small></section>
+    <div class="bench"></div>
+    <section class="machine" aria-label="Counterweight sculpture">
+      <div class="backboard"><div class="note">The wheel moved.<br>Why didn't the cup?</div></div>
+      <div id="ramp" class="ramp low"></div><div id="marble" class="marble"></div><div id="lever" class="lever"></div>
+      <div id="wheel" class="wheel"></div><div class="pulley"></div><div id="cord" class="cord loose"></div><div id="cup" class="cup"></div><div id="filament" class="filament"></div>
+    </section>
+    <div class="title"><h1>Workshop Wonder</h1><p>A reconstruction of the documented prototype state</p></div>
+    <nav class="controls" aria-label="Prototype controls">
+      <button id="rampBtn">Adjust ramp</button><button id="cordBtn">Thread cord</button><button id="marbleBtn">Place marble</button><button id="releaseBtn" disabled>Release</button><button id="resetBtn">Reset</button><div id="status" class="status">The room is quiet. Something here seems unfinished.</div>
+    </nav>
+  </main>
+<script>
+(() => {
+  const $=id=>document.getElementById(id); const ramp=$('ramp'),cord=$('cord'),marble=$('marble'),wheel=$('wheel'),cup=$('cup'),lever=$('lever'),filament=$('filament'),light=$('distantLight'),sun=$('sunbeam'),status=$('status'),release=$('releaseBtn');
+  let rampState=0, threaded=false, placed=false, busy=false;
+  const say=t=>status.textContent=t;
+  $('rampBtn').onclick=()=>{if(busy)return;rampState=(rampState+1)%3;ramp.className='ramp '+['low','good','high'][rampState];say(['The ramp is shallow.','The ramp points toward the lever.','The ramp is steep; the marble may jump the track.'][rampState]);};
+  $('cordBtn').onclick=()=>{if(busy)return;threaded=!threaded;cord.className='cord '+(threaded?'threaded':'loose');say(threaded?'The cord settles into the pulley groove.':'The cord hangs loose again.');};
+  $('marbleBtn').onclick=()=>{if(busy)return;placed=true;marble.className='marble placed';release.disabled=false;say('The marble waits at the top of the ramp.');};
+  $('releaseBtn').onclick=()=>{if(!placed||busy)return;busy=true;release.disabled=true; if(rampState!==1){marble.className='marble placed roll-miss';say('The marble misses the lever. The failure leaves a clue: the ramp angle matters.');setTimeout(()=>busy=false,1300);return;}
+    marble.className='marble placed roll-good';setTimeout(()=>{lever.classList.add('hit');wheel.classList.add('spin');say(threaded?'Energy travels: marble, lever, wheel, cord…':'The wheel turns, but the cup stays. The loose cord carries no lift.');if(threaded){setTimeout(()=>{cup.classList.add('lift');filament.classList.add('on');sun.classList.add('on');say('The counterweight lifts. A warm filament wakes—and something answers beyond the window.');setTimeout(()=>light.classList.add('on'),900);},650)}},850);setTimeout(()=>busy=false,2600);
+  };
+  $('resetBtn').onclick=()=>{rampState=0;threaded=false;placed=false;busy=false;ramp.className='ramp low';cord.className='cord loose';marble.className='marble';wheel.className='wheel';cup.className='cup';lever.className='lever';filament.className='filament';light.className='distant-light';sun.className='sunbeam';release.disabled=true;say('The room is quiet again. The mechanism remembers nothing—but you do.');};
+  const card=$('questionCard');const openCard=()=>{if(card.classList.contains('used'))return;card.classList.remove('closed');card.classList.add('used');};card.onclick=openCard;card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCard();}};
+})();
+</script>
+</body>
+</html>
