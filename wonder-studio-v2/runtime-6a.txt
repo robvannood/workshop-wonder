@@ -1,0 +1,42 @@
+  mechanism.pressure.position.y = .13 - Math.min(.07, pressureTime * .045); mechanism.pressure.material.emissive.setHex(pressureTime > .4 ? 0x6d4317 : 0x000000); mechanism.pressure.material.emissiveIntensity = pressureTime > .4 ? 1.4 : 0;
+  if (pressureTime > 1.65) { wakeLantern('Sustained weight closes an old contact beneath the floor. The lantern answers slowly.'); return; }
+  if (elapsed - lastLightCheck > .12) { lastLightCheck = elapsed; evaluateLight(false); }
+}
+
+function distancePointToSegment(point, a, b) {
+  const ab = b.clone().sub(a), t = clamp(point.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1); return point.distanceTo(a.clone().add(ab.multiplyScalar(t)));
+}
+function evaluateLight(explicit) {
+  const mirrors = [...components.values()].filter(c => c.defKey === 'mirror'); let active = false, usedMirror = null, bounce = null;
+  for (const mirror of mirrors) {
+    const mp = mirror.mesh.position.clone(), toMirror = mp.clone().sub(lightSystem.origin), distance = toMirror.length(), incoming = toMirror.normalize();
+    if (distance > 10 || incoming.dot(lightSystem.direction) < .91) continue;
+    const normal = new THREE.Vector3(0, 1, 0).applyQuaternion(mirror.mesh.quaternion).normalize(); const reflected = incoming.clone().sub(normal.clone().multiplyScalar(2 * incoming.dot(normal))).normalize();
+    const toSensor = lightSystem.sensorPos.clone().sub(mp), sensorDistance = toSensor.length(); if (sensorDistance > 10 || reflected.dot(toSensor.normalize()) < .92) continue;
+    const bluePresent = [...components.values()].some(c => (c.defKey === 'filterBlue' || c.defKey === 'prism') && distancePointToSegment(c.mesh.position, lightSystem.origin, mp) < .72);
+    if (bluePresent) { active = true; usedMirror = mp; bounce = lightSystem.sensorPos.clone(); break; }
+  }
+  lightSystem.beamB.visible = !!usedMirror;
+  if (usedMirror) {
+    lightSystem.beamA.geometry.setFromPoints([lightSystem.origin, usedMirror]); lightSystem.beamB.geometry.setFromPoints([usedMirror, bounce]);
+  } else {
+    lightSystem.beamA.geometry.setFromPoints([lightSystem.origin, lightSystem.origin.clone().add(lightSystem.direction.clone().multiplyScalar(10))]);
+  }
+  lightSystem.sensorGlow.intensity = active ? 8 : 0; lightSystem.sensor.material.emissive.setHex(active ? 0x347ac2 : 0x000000); lightSystem.sensor.material.emissiveIntensity = active ? 2.2 : 0;
+  if (active) wakeLantern('Redirected blue light reaches the sensor. A thin signal crosses the workshop and enters the landscape.');
+  else if (explicit) say(usedMirror ? 'The reflected path reaches the sensor, but it carries no blue filter or prism.' : 'The sensor remains cold. The mirror must enter the lamp beam and turn the light toward the wall.');
+}
+
+function wakeLantern(message) {
+  if (lanternAwake) return; lanternAwake = true; room.lanternMesh.material.emissive.setHex(0xffb63f); room.lanternMesh.material.emissiveIntensity = 2.8; room.lanternLight.intensity = 7;
+  chime([261.6, 392, 523.2, 784]); say(message, 6200); revealLoft(); pushHistory(); persist();
+}
+function revealLoft() {
+  if (mechanism.loft.userData.revealed) return; mechanism.loft.userData.revealed = true; mechanism.loft.scale.setScalar(1); mechanism.loftLight.intensity = 5;
+  note('not every bridge was meant for feet', [-8.4, 6.92, -7.25], [Math.PI / 2, 0, .05], [2.6, .72]);
+}
+
+function showQuestion(text) {
+  if (questionOpen || lanternAwake && text.includes('light')) return; questionOpen = true; ui.questionText.textContent = text; ui.question.classList.remove('used'); ui.question.classList.add('show'); tone(293.7, .32, 'triangle', .024);
+}
+function dismissQuestion() { questionOpen = false; ui.question.classList.add('used'); say('The card does not ask for an answer. It asks you to remain with the experiment.', 4500); }
