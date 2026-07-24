@@ -5,10 +5,10 @@ import { CATALOG, STARTING_COMPONENTS, compatibleConnector } from './components.
 
 try {
   await RAPIER.init();
-  const files = [1, 2, 3, 4, 5, 6, 7];
-  const source = (await Promise.all(files.map(async n => {
-    const response = await fetch(`./runtime-${n}.txt`);
-    if (!response.ok) throw new Error(`Could not load runtime-${n}.txt`);
+  const files = ['1', '2', '3a', '3b', '4a', '4b', '5a', '5b', '6a', '6b', '7a', '7b'];
+  const source = (await Promise.all(files.map(async name => {
+    const response = await fetch(`./runtime-${name}.txt`);
+    if (!response.ok) throw new Error(`Could not load runtime-${name}.txt`);
     return response.text();
   }))).join('');
   new Function('THREE', 'OrbitControls', 'RAPIER', 'CATALOG', 'STARTING_COMPONENTS', 'compatibleConnector', source)(
