@@ -1,0 +1,45 @@
+}
+
+function geometryFor(def) {
+  if (def.shape === 'box') return new THREE.BoxGeometry(...def.size);
+  if (def.shape === 'sphere') return new THREE.SphereGeometry(def.radius, 26, 18);
+  if (def.shape === 'cylinder') return new THREE.CylinderGeometry(def.radius, def.radius, def.height, 18);
+  if (def.shape === 'prism') return new THREE.CylinderGeometry(def.radius, def.radius, def.height, 3);
+  if (def.shape === 'bell') return new THREE.ConeGeometry(def.radius, def.height, 24, 1, true);
+  return new THREE.BoxGeometry(1, 1, 1);
+}
+function colliderFor(def) {
+  if (def.shape === 'box') return RAPIER.ColliderDesc.cuboid(def.size[0] / 2, def.size[1] / 2, def.size[2] / 2);
+  if (def.shape === 'sphere') return RAPIER.ColliderDesc.ball(def.radius);
+  if (def.shape === 'cylinder' || def.shape === 'prism' || def.shape === 'bell') return RAPIER.ColliderDesc.cylinder(def.height / 2, def.radius);
+  if (def.shape === 'wheel') return RAPIER.ColliderDesc.cylinder(def.thickness / 2, def.radius);
+  return RAPIER.ColliderDesc.cuboid(.5, .5, .5);
+}
+function buildWheelVisual(def, material) {
+  const group = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(def.radius * .78, def.radius * .16, 12, 32), material); ring.rotation.x = Math.PI / 2; group.add(ring);
+  for (let i = 0; i < 4; i++) { const spoke = new THREE.Mesh(new THREE.BoxGeometry(def.radius * 1.35, def.thickness * .45, .08), material); spoke.rotation.y = i * Math.PI / 4; group.add(spoke); }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(def.radius * .16, def.radius * .16, def.thickness * 1.1, 18), material); group.add(hub);
+  return group;
+}
+function createComponent(defKey, position, rotation = [0, 0, 0], options = {}) {
+  const def = CATALOG[defKey]; if (!def) throw new Error(`Unknown component: ${defKey}`);
+  const id = options.id || `part-${nextId++}`; if (options.id) nextId = Math.max(nextId, Number(options.id.split('-')[1]) + 1 || nextId);
+  const mat = materialFromDef(def); let mesh;
+  if (def.shape === 'wheel') mesh = buildWheelVisual(def, mat); else mesh = new THREE.Mesh(geometryFor(def), mat);
+  mesh.position.set(...position); mesh.rotation.set(...rotation); mesh.name = def.label; mesh.userData.componentId = id; mesh.traverse(o => { o.userData.componentId = id; o.castShadow = o.receiveShadow = true; }); scene.add(mesh);
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation));
+  const desc = RAPIER.RigidBodyDesc.dynamic().setTranslation(...position).setRotation(q).setLinearDamping(.22).setAngularDamping(.3).setCanSleep(true).setCcdEnabled(defKey === 'ball');
+  const body = world.createRigidBody(desc); const collider = world.createCollider(colliderFor(def).setMass(Math.max(.1, def.mass)).setFriction(def.friction ?? .7).setRestitution(def.restitution ?? .08), body);
+  const connectorMarkers = [];
+  def.connectors.forEach((c, index) => {
+    const marker = new THREE.Mesh(new THREE.SphereGeometry(.075, 10, 8), new THREE.MeshBasicMaterial({ color: connectorColor(c.type), transparent: true, opacity: .86, depthTest: false }));
+    marker.position.set(...c.p); marker.visible = false; marker.userData.connectorIndex = index; mesh.add(marker); connectorMarkers.push(marker);
+  });
+  const home = options.home || { p: [...position], r: [...rotation] };
+  const component = { id, defKey, def, mesh, body, collider, connectorMarkers, home, created: options.created || Date.now() };
+  components.set(id, component); pickables.push(mesh); return component;
+}
+function connectorColor(type) { return ({ fixed: 0xffd28a, hinge: 0xe5a6ff, axle: 0x8ed0ff, axleSocket: 0x8ed0ff, rope: 0xd8c49a, ropeHook: 0xd8c49a })[type] || 0xffffff; }
+
+function removeComponent(id) {
