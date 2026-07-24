@@ -1,0 +1,38 @@
+function moveDrag(e) {
+  const c = components.get(draggingId); if (!c) return; screenPointer(e); const hit = new THREE.Vector3();
+  if (raycaster.ray.intersectPlane(dragPlane, hit)) { const p = hit.add(dragOffset); p.x = clamp(p.x, -12.2, 12.2); p.z = clamp(p.z, -9.15, 8.8); p.y = Math.max(.28, p.y); c.body.setNextKinematicTranslation(p); c.mesh.position.copy(p); }
+}
+function endDrag() {
+  const c = components.get(draggingId); if (!c) return; c.body.setBodyType(RAPIER.RigidBodyType.Dynamic, true); c.body.wakeUp(); draggingId = null; controls.enabled = true; setMode('explore'); renderer.domElement.style.cursor = 'grab'; knock(103); pushHistory(); persist();
+}
+
+function handleEnvironment(action, object) {
+  if (action === 'drawer') {
+    room.drawer.userData.open = !room.drawer.userData.open; room.drawer.position.z = room.drawer.userData.open ? -7.45 : -8.24; knock(room.drawer.userData.open ? 126 : 95);
+    say(room.drawer.userData.open ? 'The drawer opens on repaired runners. The material catalog has also opened.' : 'The drawer closes with a familiar wooden knock.');
+    if (room.drawer.userData.open) ui.drawer.classList.add('open');
+  } else if (action === 'crank') {
+    mechanism.crank.rotation.z -= .8; mechanism.gears.forEach((g, i) => g.rotation.z += (i % 2 ? -1 : 1) * .75);
+    const wheel = selectedId && components.get(selectedId)?.defKey === 'wheel' ? components.get(selectedId) : [...components.values()].find(c => c.defKey === 'wheel');
+    if (wheel) { wheel.body.applyTorqueImpulse({ x: 0, y: 3.6, z: 0 }, true); say('The crank gives rotational energy to a nearby wheel. What will carry it farther?'); } else say('The crank turns freely. It is waiting for a wheel and an axle.');
+    knock(88);
+  } else if (action === 'tube') {
+    object.scale.y = 1.08; setTimeout(() => object.scale.y = 1, 170); tone(object.userData.freq, .75, 'sine', .045); say('The tube rings. Loose objects answer according to their material and weight.');
+  } else if (action === 'drum') {
+    object.scale.z = .88; setTimeout(() => object.scale.z = 1, 150); tone(82, .22, 'sine', .09); tone(164, .08, 'triangle', .025); say('The drum gives the room a low center. The pressure plate trembles.');
+  } else if (action === 'strings') {
+    [196, 246.9, 293.7].forEach((n, i) => tone(n, .55, 'triangle', .026, i * .045)); say('The strings disagree by a little. Their beating becomes a slow pulse.');
+  } else if (action === 'lamp') {
+    lightSystem.lampLight.intensity = lightSystem.lampLight.intensity > 8 ? 6 : 10; tone(330, .16, 'sine', .025); say('The blue lamp opens farther across the workbench. Move and turn the mirror inside its path.');
+  } else if (action === 'sensor') {
+    lightAttempts++; evaluateLight(true); if (lightAttempts === 3 && !lanternAwake) showQuestion('What is the light touching before it reaches the sensor?');
+  } else if (action === 'impactPlate') say('The metal plate is connected to a wire disappearing through the wall. It needs a decisive impact.');
+  else if (action === 'pressure') say('The plate settles slightly under weight. It appears to care about patience as much as heaviness.');
+}
+
+function rotateSelected(axis, amount = Math.PI / 12) {
+  const c = components.get(selectedId); if (!c) return; const q = c.mesh.quaternion.clone(); const dq = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(axis === 'x' ? 1 : 0, axis === 'y' ? 1 : 0, axis === 'z' ? 1 : 0), amount); q.multiply(dq); c.mesh.quaternion.copy(q); c.body.setRotation(q, true); c.body.wakeUp(); scrape(); pushHistory(); persist();
+}
+function moveSelected(dy) {
+  const c = components.get(selectedId); if (!c) return; const p = c.body.translation(); c.body.setTranslation({ x: p.x, y: Math.max(.3, p.y + dy), z: p.z }, true); c.body.setLinvel({ x: 0, y: 0, z: 0 }, true); c.body.wakeUp(); pushHistory(); persist();
+}
