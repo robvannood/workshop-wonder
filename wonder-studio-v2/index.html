@@ -15,10 +15,24 @@
   }</script>
 </head>
 <body>
+  <section id="arrival" aria-label="Enter Wonder Studio">
+    <div class="arrival-light"></div>
+    <div class="arrival-card">
+      <small>AN UNFINISHED WORKSHOP</small>
+      <h1>Wonder Studio</h1>
+      <p>Someone was here before you. They left the weight, the light, and the questions unfinished.</p>
+      <button id="enterWorkshop">Enter quietly</button>
+      <span>Headphones recommended · press Enter</span>
+    </div>
+  </section>
+
+  <div id="atmosphere" aria-hidden="true"><div class="dust dust-a"></div><div class="dust dust-b"></div><div class="grain"></div></div>
+  <button id="listen" aria-pressed="false" title="Toggle workshop ambience"><i></i><span id="whisper">listen to the room</span></button>
+
   <div id="loading"><div class="loading-card"><div class="loading-mark"></div><h1>Wonder Studio</h1><p>Preparing weight, resistance, light, and unfinished possibilities…</p></div></div>
   <div id="error"><div><h1>The workshop could not open.</h1><p>This build requires a modern browser with WebGL 2 and WebAssembly.</p></div></div>
   <div id="veil"></div>
-  <header id="title"><h1>Wonder Studio</h1><p>construction study 02 · the workshop now has weight</p></header>
+  <header id="title"><h1>Wonder Studio</h1><p>construction study 03 · listen before you move</p></header>
   <div id="reticle"></div>
   <div id="status" role="status"></div>
   <div id="mode"><span id="modeLabel">explore</span></div>
@@ -60,5 +74,6 @@
   <div id="readout"><strong id="selectedName">Nothing selected</strong><span id="selectedDetail">Touch a loose material to begin.</span></div>
   <div id="hint">The lantern outside can be awakened by impact, sustained weight, or redirected blue light. The exact mechanism is yours.</div>
   <script type="module" src="./app.js"></script>
+  <script type="module" src="./atmosphere.js"></script>
 </body>
 </html>
