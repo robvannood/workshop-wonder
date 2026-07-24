@@ -1,0 +1,42 @@
+}
+function duplicateSelected() {
+  const c = components.get(selectedId); if (!c) return; const p = c.mesh.position.clone().add(new THREE.Vector3(.55, .4, .35)), e = new THREE.Euler().setFromQuaternion(c.mesh.quaternion);
+  const copy = createComponent(c.defKey, p.toArray(), [e.x, e.y, e.z]); select(copy.id); say('A second part appears. Repetition changes what the first part can become.'); pushHistory(); persist();
+}
+function returnSelected() {
+  const c = components.get(selectedId); if (!c) return; [...joints.values()].filter(j => j.a === c.id || j.b === c.id).forEach(j => removeJoint(j.id));
+  c.body.setTranslation({ x: c.home.p[0], y: c.home.p[1], z: c.home.p[2] }, true); const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...c.home.r)); c.body.setRotation(q, true); c.body.setLinvel({ x: 0, y: 0, z: 0 }, true); c.body.setAngvel({ x: 0, y: 0, z: 0 }, true); c.body.wakeUp();
+  say('The material returns to the workbench, carrying no score for what happened.'); knock(92); pushHistory(); persist();
+}
+function detachSelected() {
+  if (!selectedId) return; const attached = [...joints.values()].filter(j => j.a === selectedId || j.b === selectedId); attached.forEach(j => removeJoint(j.id));
+  if (attached.length) { say(`${attached.length} connection${attached.length === 1 ? '' : 's'} released. The parts remember their separate weight.`); knock(84); pushHistory(); persist(); select(selectedId); }
+}
+
+function updateJointVisuals() {
+  for (const [id, j] of joints) {
+    const a = components.get(j.a), b = components.get(j.b), line = ropeVisuals.get(id); if (!a || !b || !line) continue;
+    const pa = connectorWorld(a, j.ia), pb = connectorWorld(b, j.ib); line.geometry.setFromPoints([pa, pb]);
+  }
+}
+function syncPhysics() {
+  for (const c of components.values()) {
+    if (c.id === draggingId) continue; const p = c.body.translation(), q = c.body.rotation(); c.mesh.position.set(p.x, p.y, p.z); c.mesh.quaternion.set(q.x, q.y, q.z, q.w);
+    if (p.y < -2.5) { fallCount++; [...joints.values()].filter(j => j.a === c.id || j.b === c.id).forEach(j => removeJoint(j.id)); const hp = c.home.p; c.body.setTranslation({ x: hp[0], y: hp[1] + .8, z: hp[2] }, true); const hq = new THREE.Quaternion().setFromEuler(new THREE.Euler(...c.home.r)); c.body.setRotation(hq, true); c.body.setLinvel({ x: 0, y: 0, z: 0 }, true); c.body.setAngvel({ x: 0, y: 0, z: 0 }, true); if (fallCount === 2) showQuestion('Where does the construction first begin to change?'); }
+  }
+  if (selectedId && components.has(selectedId)) { selectionBox.setFromObject(components.get(selectedId).mesh); ui.selectedDetail.textContent = `${components.get(selectedId).def.mass.toFixed(1)} kg · ${components.get(selectedId).def.kind} · ${jointCountFor(selectedId)} connection${jointCountFor(selectedId) === 1 ? '' : 's'}`; }
+  updateJointVisuals();
+}
+
+function evaluateInvention(dt, elapsed) {
+  if (lanternAwake) return;
+  let impact = false;
+  for (const c of components.values()) {
+    const p = c.body.translation(), v = c.body.linvel(); const speed = Math.hypot(v.x, v.y, v.z);
+    if (new THREE.Vector3(p.x, p.y, p.z).distanceTo(mechanism.impactCenter) < .85 && speed > 2.45) { impact = true; break; }
+  }
+  if (impact) { mechanism.impactPlate.material.emissive.setHex(0xff9b3d); mechanism.impactPlate.material.emissiveIntensity = 1.8; wakeLantern('A decisive impact travels through the wall and wakes the distant lantern.'); return; }
+
+  let mass = 0;
+  for (const c of components.values()) { const p = c.body.translation(); if (Math.abs(p.x + .45) < 1.05 && Math.abs(p.z + 5.55) < 1.02 && p.y < 1.8) mass += c.def.mass; }
+  pressureTime = mass >= 5.8 ? pressureTime + dt : Math.max(0, pressureTime - dt * 1.7);
