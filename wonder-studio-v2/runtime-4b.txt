@@ -1,0 +1,50 @@
+  const best = nearestCompatible(a, b);
+  if (!best || best.distance > (best.type === 'rope' ? 4.2 : 1.35)) {
+    failedConnects++; say(best ? 'The connection marks are too far apart. Move the materials closer and try again.' : 'These two materials do not yet know how to connect.');
+    if (failedConnects === 3) showQuestion('What does each material seem to want from the other?'); return false;
+  }
+  if (best.type !== 'rope') {
+    const delta = best.pb.clone().sub(best.pa), t = a.body.translation(); const next = { x: t.x + delta.x, y: t.y + delta.y, z: t.z + delta.z };
+    a.body.setTranslation(next, true); a.mesh.position.set(next.x, next.y, next.z);
+  }
+  makeJoint(aId, bId, best.ia, best.ib, best.type); connectionsMade++;
+  tone(best.type === 'rope' ? 190 : 330, .2, 'triangle', .04); knock(92, .025);
+  say(best.type === 'rope' ? 'The rope takes tension between the two parts.' : `${a.def.label} joins ${b.def.label}. Test the promise they have made.`);
+  if (connectionsMade === 3) { showQuestion('Can slower movement become stronger movement?'); revealLoft(); }
+  pushHistory(); persist(); return true;
+}
+
+function select(id) {
+  if (selectedId && components.has(selectedId)) showConnectors(components.get(selectedId), false);
+  selectedId = id; const c = id ? components.get(id) : null;
+  if (!c) {
+    selectionBox.visible = false; ui.selection.classList.remove('show'); ui.selectedName.textContent = 'Nothing selected'; ui.selectedDetail.textContent = 'Touch a loose material to begin.';
+    ui.detach.disabled = true; return;
+  }
+  selectionBox.setFromObject(c.mesh); selectionBox.visible = true; ui.selection.classList.add('show'); showConnectors(c, true);
+  ui.selectedName.textContent = c.def.label; ui.selectedDetail.textContent = `${c.def.mass.toFixed(1)} kg · ${c.def.kind} · ${jointCountFor(id)} connection${jointCountFor(id) === 1 ? '' : 's'}`;
+  ui.detach.disabled = jointCountFor(id) === 0;
+}
+function showConnectors(c, visible) { c.connectorMarkers.forEach(m => m.visible = visible); }
+function jointCountFor(id) { return [...joints.values()].filter(j => j.a === id || j.b === id).length; }
+function setMode(label) { ui.modeLabel.textContent = label; }
+
+function screenPointer(e) {
+  const r = renderer.domElement.getBoundingClientRect(); pointer.x = (e.clientX - r.left) / r.width * 2 - 1; pointer.y = -(e.clientY - r.top) / r.height * 2 + 1; raycaster.setFromCamera(pointer, camera);
+}
+function pick(e) {
+  screenPointer(e); const hits = raycaster.intersectObjects([...pickables, ...environmentPickables], true); if (!hits.length) return null;
+  let o = hits[0].object;
+  while (o && !o.userData.componentId && !o.userData.action && o.parent) o = o.parent;
+  if (o?.userData.componentId) return { component: components.get(o.userData.componentId), object: o };
+  if (o?.userData.action) return { action: o.userData.action, object: o }; return null;
+}
+function hover(e) {
+  if (draggingId || connectFrom) return; const h = pick(e); const id = h?.component?.id || null;
+  hoveredId = id; ui.reticle.classList.toggle('active', !!h); renderer.domElement.style.cursor = h ? (id ? 'grab' : 'pointer') : 'grab';
+}
+function startDrag(c, e) {
+  draggingId = c.id; select(c.id); controls.enabled = false; setMode('moving material'); renderer.domElement.style.cursor = 'grabbing';
+  c.body.setBodyType(RAPIER.RigidBodyType.KinematicPositionBased, true); c.body.setLinvel({ x: 0, y: 0, z: 0 }, true); c.body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  screenPointer(e); dragPlane.set(new THREE.Vector3(0, 1, 0), -Math.max(.3, c.mesh.position.y)); const hit = new THREE.Vector3(); raycaster.ray.intersectPlane(dragPlane, hit); dragOffset.copy(c.mesh.position).sub(hit); scrape();
+}
