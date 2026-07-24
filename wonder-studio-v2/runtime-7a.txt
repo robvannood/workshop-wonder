@@ -1,0 +1,30 @@
+      if (connectFrom && h.component.id !== connectFrom) { const source = connectFrom; connectComponents(source, h.component.id); connectFrom = null; ui.connect.classList.remove('active'); setMode('explore'); select(h.component.id); hideAllConnectorsExceptSelected(); e.preventDefault(); return; }
+      startDrag(h.component, e); e.preventDefault();
+    } else if (h.action) { handleEnvironment(h.action, h.object); e.preventDefault(); }
+  });
+  renderer.domElement.addEventListener('pointerup', () => { if (draggingId) endDrag(); });
+  renderer.domElement.addEventListener('pointercancel', () => { if (draggingId) endDrag(); });
+  renderer.domElement.addEventListener('dblclick', e => { const h = pick(e); if (h?.component) { select(h.component.id); rotateSelected('y'); } });
+  addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+  addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'r') rotateSelected('y'); if (e.key.toLowerCase() === 'q') rotateSelected('z', -Math.PI / 12); if (e.key.toLowerCase() === 'e') rotateSelected('z');
+    if (e.key === 'ArrowUp' && e.shiftKey) moveSelected(.25); if (e.key === 'ArrowDown' && e.shiftKey) moveSelected(-.25);
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  });
+  $('menu').onclick = () => { ui.drawer.classList.toggle('open'); ui.drawer.setAttribute('aria-hidden', String(!ui.drawer.classList.contains('open'))); };
+  ui.connect.onclick = () => {
+    if (connectFrom) { connectFrom = null; ui.connect.classList.remove('active'); setMode('explore'); hideAllConnectorsExceptSelected(); say('Connection mode closes.'); return; }
+    if (!selectedId) { say('Select one material first, then choose Connect.'); return; }
+    connectFrom = selectedId; ui.connect.classList.add('active'); setMode('choose second material'); showConnectors(components.get(selectedId), true); showCompatibleTargets(selectedId, true); say('Choose a second material. Compatible connection marks will join when they are close enough.');
+  };
+  ui.detach.onclick = detachSelected; $('duplicate').onclick = duplicateSelected; $('return').onclick = returnSelected;
+  document.querySelectorAll('[data-rotate]').forEach(b => b.onclick = () => rotateSelected(b.dataset.rotate));
+  document.querySelectorAll('[data-move]').forEach(b => b.onclick = () => moveSelected(b.dataset.move === 'up' ? .25 : -.25));
+  $('undo').onclick = undo; $('redo').onclick = redo; $('save').onclick = () => { persist(); say('The studio remembers this construction on this device.'); };
+  $('load').onclick = () => { restore(); pushHistory(); say('The saved construction returns with its connections intact.'); };
+  $('reset').onclick = () => { localStorage.removeItem(STORAGE_KEY); location.reload(); };
+  $('photo').onclick = photograph;
+  ui.sound.onchange = () => { soundOn = ui.sound.checked; if (soundOn) tone(330, .12, 'sine', .03); persist(); say(soundOn ? 'The workshop has its voice again.' : 'The workshop becomes quiet, but its forces continue.'); };
+  ui.motion.onchange = () => { reducedMotion = ui.motion.checked; document.body.classList.toggle('reduce-motion', reducedMotion); persist(); };
+  ui.contrast.onchange = () => { document.body.classList.toggle('high-contrast', ui.contrast.checked); persist(); };
+  ui.question.onclick = dismissQuestion; ui.question.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismissQuestion(); } };
