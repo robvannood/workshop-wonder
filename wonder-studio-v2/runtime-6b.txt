@@ -1,0 +1,38 @@
+
+function serialize() {
+  return {
+    version: VERSION, nextId, nextJointId, lanternAwake, pressureTime, fallCount, failedConnects, lightAttempts, connectionsMade,
+    soundOn, reducedMotion, contrast: ui.contrast.checked, drawerOpen: !!room.drawer.userData.open, loft: !!mechanism.loft.userData.revealed,
+    components: [...components.values()].map(c => { const p = c.body.translation(), q = c.body.rotation(), lv = c.body.linvel(), av = c.body.angvel(); return { id: c.id, defKey: c.defKey, p: [p.x, p.y, p.z], q: [q.x, q.y, q.z, q.w], lv: [lv.x, lv.y, lv.z], av: [av.x, av.y, av.z], home: c.home, created: c.created }; }),
+    joints: [...joints.values()].map(j => ({ id: j.id, a: j.a, b: j.b, ia: j.ia, ib: j.ib, type: j.type, length: j.length })),
+    camera: { p: camera.position.toArray(), target: controls.target.toArray() }
+  };
+}
+function clearDynamic() { [...joints.keys()].forEach(removeJoint); [...components.keys()].forEach(removeComponent); select(null); }
+function applyState(state) {
+  if (!state || state.version !== VERSION) return false; applyingState = true; clearDynamic();
+  nextId = state.nextId || 1; nextJointId = state.nextJointId || 1;
+  for (const s of state.components) {
+    const q = new THREE.Quaternion(...s.q), e = new THREE.Euler().setFromQuaternion(q); const c = createComponent(s.defKey, s.p, [e.x, e.y, e.z], { id: s.id, home: s.home, created: s.created });
+    c.body.setRotation(q, false); c.body.setLinvel({ x: s.lv[0], y: s.lv[1], z: s.lv[2] }, false); c.body.setAngvel({ x: s.av[0], y: s.av[1], z: s.av[2] }, false);
+  }
+  for (const j of state.joints) makeJoint(j.a, j.b, j.ia, j.ib, j.type, j);
+  lanternAwake = !!state.lanternAwake; pressureTime = state.pressureTime || 0; fallCount = state.fallCount || 0; failedConnects = state.failedConnects || 0; lightAttempts = state.lightAttempts || 0; connectionsMade = state.connectionsMade || 0;
+  soundOn = state.soundOn !== false; reducedMotion = !!state.reducedMotion; ui.sound.checked = soundOn; ui.motion.checked = reducedMotion; ui.contrast.checked = !!state.contrast;
+  document.body.classList.toggle('reduce-motion', reducedMotion); document.body.classList.toggle('high-contrast', !!state.contrast);
+  room.drawer.userData.open = !!state.drawerOpen; room.drawer.position.z = state.drawerOpen ? -7.45 : -8.24;
+  if (state.loft) revealLoft(); if (lanternAwake) { room.lanternMesh.material.emissive.setHex(0xffb63f); room.lanternMesh.material.emissiveIntensity = 2.8; room.lanternLight.intensity = 7; }
+  if (state.camera) { camera.position.fromArray(state.camera.p); controls.target.fromArray(state.camera.target); controls.update(); }
+  applyingState = false; return true;
+}
+function persist() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(serialize())); } catch (_) {} }
+function restore() { try { return applyState(JSON.parse(localStorage.getItem(STORAGE_KEY))); } catch (_) { return false; } }
+function pushHistory(clearFuture = true) { if (applyingState) return; const s = JSON.stringify(serialize()); if (history.at(-1) !== s) { history.push(s); if (history.length > 30) history.shift(); if (clearFuture) future = []; } }
+function undo() { if (history.length < 2) return; future.push(history.pop()); applyState(JSON.parse(history.at(-1))); persist(); say('One change is taken back. The possibility of it remains.'); }
+function redo() { if (!future.length) return; const s = future.pop(); history.push(s); applyState(JSON.parse(s)); persist(); say('The later arrangement returns.'); }
+
+function bindUI() {
+  renderer.domElement.addEventListener('pointermove', e => draggingId ? moveDrag(e) : hover(e));
+  renderer.domElement.addEventListener('pointerdown', e => {
+    const h = pick(e); if (!h) return;
+    if (h.component) {
