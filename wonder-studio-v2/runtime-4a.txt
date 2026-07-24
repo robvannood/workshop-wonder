@@ -1,0 +1,63 @@
+  const c = components.get(id); if (!c) return;
+  [...joints.values()].filter(j => j.a === id || j.b === id).forEach(j => removeJoint(j.id));
+  world.removeRigidBody(c.body); scene.remove(c.mesh); const index = pickables.indexOf(c.mesh); if (index >= 0) pickables.splice(index, 1); components.delete(id);
+  if (selectedId === id) select(null);
+}
+
+function connectorWorld(component, index) {
+  component.mesh.updateMatrixWorld(true);
+  const local = new THREE.Vector3(...component.def.connectors[index].p); return component.mesh.localToWorld(local);
+}
+function showCompatibleTargets(fromId, visible) {
+  const from = components.get(fromId);
+  for (const c of components.values()) {
+    if (c.id === fromId) continue;
+    c.connectorMarkers.forEach((marker, index) => {
+      marker.visible = !!visible && from.def.connectors.some(fc => compatibleConnector(fc.type, c.def.connectors[index].type));
+    });
+  }
+}
+function hideAllConnectorsExceptSelected() {
+  for (const c of components.values()) showConnectors(c, c.id === selectedId);
+}
+
+function nearestCompatible(a, b) {
+  let best = null;
+  a.def.connectors.forEach((ca, ia) => b.def.connectors.forEach((cb, ib) => {
+    const type = compatibleConnector(ca.type, cb.type); if (!type) return;
+    const pa = connectorWorld(a, ia), pb = connectorWorld(b, ib), distance = pa.distanceTo(pb);
+    if (!best || distance < best.distance) best = { ia, ib, type, distance, pa, pb };
+  }));
+  return best;
+}
+function makeJoint(aId, bId, ia, ib, type, options = {}) {
+  const a = components.get(aId), b = components.get(bId); if (!a || !b) return null;
+  const ca = a.def.connectors[ia], cb = b.def.connectors[ib]; if (!ca || !cb) return null;
+  const va = { x: ca.p[0], y: ca.p[1], z: ca.p[2] }, vb = { x: cb.p[0], y: cb.p[1], z: cb.p[2] };
+  let data;
+  if (type === 'revolute') data = RAPIER.JointData.revolute(va, vb, { x: 0, y: 1, z: 0 });
+  else if (type === 'hinge') data = RAPIER.JointData.revolute(va, vb, { x: 0, y: 0, z: 1 });
+  else if (type === 'rope') {
+    const len = options.length || connectorWorld(a, ia).distanceTo(connectorWorld(b, ib)); data = RAPIER.JointData.rope(Math.max(.25, len), va, vb);
+  } else {
+    const qa = new THREE.Quaternion(a.body.rotation().x, a.body.rotation().y, a.body.rotation().z, a.body.rotation().w);
+    const qb = new THREE.Quaternion(b.body.rotation().x, b.body.rotation().y, b.body.rotation().z, b.body.rotation().w);
+    const frameB = qb.clone().invert().multiply(qa);
+    data = RAPIER.JointData.fixed(va, identityQ, vb, { x: frameB.x, y: frameB.y, z: frameB.z, w: frameB.w });
+  }
+  const joint = world.createImpulseJoint(data, a.body, b.body, true); const id = options.id || `joint-${nextJointId++}`;
+  if (options.id) nextJointId = Math.max(nextJointId, Number(options.id.split('-')[1]) + 1 || nextJointId);
+  joints.set(id, { id, a: aId, b: bId, ia, ib, type, joint, length: type === 'rope' ? (options.length || connectorWorld(a, ia).distanceTo(connectorWorld(b, ib))) : null });
+  createJointVisual(id); return id;
+}
+function createJointVisual(id) {
+  const j = joints.get(id); if (!j) return;
+  const color = j.type === 'rope' ? 0xd5c096 : j.type === 'revolute' ? 0x8ed0ff : j.type === 'hinge' ? 0xe5a6ff : 0xffd28a;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color, transparent: true, opacity: j.type === 'rope' ? .9 : .52 })); scene.add(line); ropeVisuals.set(id, line);
+}
+function removeJoint(id) {
+  const j = joints.get(id); if (!j) return; world.removeImpulseJoint(j.joint, true); joints.delete(id);
+  const line = ropeVisuals.get(id); if (line) { scene.remove(line); line.geometry.dispose(); line.material.dispose(); ropeVisuals.delete(id); }
+}
+function connectComponents(aId, bId) {
+  const a = components.get(aId), b = components.get(bId); if (!a || !b || aId === bId) return false;
