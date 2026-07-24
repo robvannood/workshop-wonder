@@ -1,0 +1,123 @@
+const $ = id => document.getElementById(id);
+const ui = {
+  loading: $('loading'), error: $('error'), status: $('status'), reticle: $('reticle'), drawer: $('drawer'),
+  question: $('question'), questionText: $('questionText'), selection: $('selection'), selectedName: $('selectedName'),
+  selectedDetail: $('selectedDetail'), modeLabel: $('modeLabel'), connect: $('connect'), detach: $('detach'),
+  sound: $('sound'), motion: $('motion'), contrast: $('contrast'), catalog: $('catalog')
+};
+const STORAGE_KEY = 'wonder-studio-v2-state';
+const VERSION = 2;
+const identityQ = { x: 0, y: 0, z: 0, w: 1 };
+const clamp = THREE.MathUtils.clamp;
+
+let renderer, scene, camera, controls, raycaster, pointer, clock, world, selectionBox, dragPlane;
+let selectedId = null, hoveredId = null, draggingId = null, connectFrom = null, dragOffset = new THREE.Vector3();
+let statusTimer, audioContext, soundOn = true, reducedMotion = false, nextId = 1, nextJointId = 1;
+let accumulator = 0, lanternAwake = false, pressureTime = 0, lastLightCheck = 0, questionOpen = false;
+let fallCount = 0, failedConnects = 0, lightAttempts = 0, connectionsMade = 0;
+let history = [], future = [], applyingState = false;
+
+const components = new Map();
+const joints = new Map();
+const pickables = [];
+const environmentPickables = [];
+const ropeVisuals = new Map();
+const dust = {};
+const room = {};
+const mechanism = {};
+const lightSystem = {};
+
+const textures = {
+  wood: makeGrain('#765036', '#3e281b'), cardboard: makeGrain('#a66d3d', '#6b3f25'),
+  paper: makeGrain('#d7c18f', '#8c7045'), wall: makeGrain('#4c372b', '#251b15')
+};
+
+function makeGrain(base, line) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'); x.fillStyle = base; x.fillRect(0, 0, 256, 256);
+  x.globalAlpha = .14;
+  for (let i = 0; i < 220; i++) {
+    x.strokeStyle = i % 4 ? line : '#fff'; x.lineWidth = Math.random() * 1.2 + .2;
+    x.beginPath(); const y = Math.random() * 256; x.moveTo(-10, y);
+    x.bezierCurveTo(70, y + Math.random() * 14 - 7, 170, y + Math.random() * 14 - 7, 266, y + Math.random() * 8 - 4); x.stroke();
+  }
+  x.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function materialFromDef(def) {
+  const m = new THREE.MeshStandardMaterial({
+    color: def.color, roughness: def.roughness ?? .78, metalness: def.metalness ?? .04,
+    transparent: def.opacity != null, opacity: def.opacity ?? 1, side: def.opacity != null ? THREE.DoubleSide : THREE.FrontSide
+  });
+  if (def.label.includes('Wood')) { m.map = textures.wood; m.map.repeat.set(2.3, 1); }
+  if (def.label.includes('Cardboard')) { m.map = textures.cardboard; m.map.repeat.set(2, 1.2); }
+  return m;
+}
+
+function say(text, duration = 3600) {
+  clearTimeout(statusTimer); ui.status.textContent = text; ui.status.classList.add('show');
+  statusTimer = setTimeout(() => ui.status.classList.remove('show'), duration);
+}
+
+function audio() {
+  if (!soundOn) return null;
+  audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+  if (audioContext.state === 'suspended') audioContext.resume();
+  return audioContext;
+}
+function tone(freq = 220, duration = .12, type = 'sine', gain = .035, delay = 0) {
+  const c = audio(); if (!c) return;
+  const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.setValueAtTime(freq, c.currentTime + delay);
+  g.gain.setValueAtTime(.0001, c.currentTime + delay); g.gain.exponentialRampToValueAtTime(gain, c.currentTime + delay + .012);
+  g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + delay + duration); o.connect(g).connect(c.destination);
+  o.start(c.currentTime + delay); o.stop(c.currentTime + delay + duration + .03);
+}
+function knock(freq = 112, gain = .04) { tone(freq, .08, 'triangle', gain); tone(freq * .5, .16, 'sine', gain * .55); }
+function scrape() { tone(145 + Math.random() * 55, .055, 'sawtooth', .012); }
+function chime(notes = [261.6, 329.6, 392, 523.2]) { notes.forEach((n, i) => tone(n, .65, 'sine', .027, i * .105)); }
+
+function addMesh(mesh, parent = scene) { parent.add(mesh); mesh.castShadow = mesh.receiveShadow = true; return mesh; }
+function boxMesh(size, material, position, rotation = [0, 0, 0], parent = scene) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material); mesh.position.set(...position); mesh.rotation.set(...rotation); return addMesh(mesh, parent);
+}
+function cylinderMesh(radius, height, material, position, rotation = [0, 0, 0], radial = 24, parent = scene) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, radial), material); mesh.position.set(...position); mesh.rotation.set(...rotation); return addMesh(mesh, parent);
+}
+function fixedBox(size, position, rotation = [0, 0, 0], visualMaterial = null) {
+  if (visualMaterial) boxMesh(size, visualMaterial, position, rotation);
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation));
+  const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(...position).setRotation(q));
+  world.createCollider(RAPIER.ColliderDesc.cuboid(size[0] / 2, size[1] / 2, size[2] / 2).setFriction(.86), body);
+  return body;
+}
+
+function noteTexture(text, width = 520, height = 210) {
+  const c = document.createElement('canvas'); c.width = width; c.height = height; const x = c.getContext('2d');
+  x.fillStyle = '#d8c38f'; x.fillRect(0, 0, width, height); x.globalAlpha = .12;
+  for (let i = 0; i < 230; i++) { x.fillStyle = i % 2 ? '#563821' : '#fff'; x.fillRect(Math.random() * width, Math.random() * height, Math.random() * 7 + 1, 1); }
+  x.globalAlpha = 1; x.fillStyle = '#3d2a1b'; x.font = 'italic 34px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  const words = text.split(' '), lines = []; let line = '';
+  for (const word of words) { const test = line ? `${line} ${word}` : word; if (x.measureText(test).width > width - 52) { lines.push(line); line = word; } else line = test; }
+  lines.push(line); lines.forEach((l, i) => x.fillText(l, width / 2, height / 2 + (i - (lines.length - 1) / 2) * 42));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+function note(text, position, rotation = [0, 0, 0], size = [2.4, .95]) {
+  const m = new THREE.MeshStandardMaterial({ map: noteTexture(text), roughness: 1, side: THREE.DoubleSide });
+  return boxMesh([size[0], .018, size[1]], m, position, rotation);
+}
+
+function buildRoom() {
+  scene.background = new THREE.Color(0x171511); scene.fog = new THREE.FogExp2(0x18130f, .016);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x4e3322, roughness: .94, map: textures.wood }); floorMat.map.repeat.set(7, 7);
+  fixedBox([26, .35, 20], [0, -.17, 0], [0, 0, 0], floorMat);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x4b382c, roughness: .98, map: textures.wall }); wallMat.map.repeat.set(5, 2);
+  fixedBox([26, 10, .45], [0, 4.8, -10], [0, 0, 0], wallMat);
+  fixedBox([.45, 10, 20], [-13, 4.8, 0], [0, 0, 0], wallMat);
+  fixedBox([.45, 10, 20], [13, 4.8, 0], [0, 0, 0], wallMat);
+
+  const planks = new THREE.MeshStandardMaterial({ color: 0x785037, roughness: .88, map: textures.wood }); planks.map.repeat.set(3, 1);
+  fixedBox([8.8, .48, 4.5], [-1, 2.25, 2.5], [0, 0, 0], planks);
+  fixedBox([5.2, .4, 3.45], [8.3, 1.52, 3.35], [0, 0, 0], planks);
+  fixedBox([5.7, .4, 3.45], [-9.1, 1.52, 3.4], [0, 0, 0], planks);
