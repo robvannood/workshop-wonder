@@ -1,0 +1,89 @@
+  fixedBox([5.35, .28, 4.1], [-8.9, .15, -3.15], [0, 0, 0], new THREE.MeshStandardMaterial({ color: 0x9c6539, roughness: 1, map: textures.cardboard }));
+
+  note('prototype 21 — a connection is a promise between two materials', [-1.8, 2.55, .75], [0, 0, -.08], [3.8, 1]);
+  note('What changes when weight becomes a signal?', [3.7, 7.6, -9.68], [Math.PI / 2, 0, .02], [3.7, .85]);
+  note('the light reached the wall, but not the reason', [8.5, 1.78, 1.72], [0, 0, .04], [2.8, .85]);
+  note('listen for what is almost moving', [-9.2, 1.78, 1.75], [0, 0, -.04], [2.8, .85]);
+
+  buildShelves(); buildWindowAndOutside(); buildMechanicalWall(); buildLightArea(); buildSoundArea(); buildConstructionArea(); buildDust();
+
+  const hemi = new THREE.HemisphereLight(0xc4b58e, 0x21180f, 1.18); scene.add(hemi);
+  room.sun = new THREE.DirectionalLight(0xffd7a3, 2.05); room.sun.position.set(8, 12, 4); room.sun.castShadow = true; room.sun.shadow.mapSize.set(2048, 2048); scene.add(room.sun);
+  const warm = new THREE.PointLight(0xffb969, 19, 16, 2); warm.position.set(-3, 6.4, 1); warm.castShadow = true; scene.add(warm);
+}
+
+function buildShelves() {
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6e4931, roughness: .9, map: textures.wood });
+  [1.3, 3.15, 5.05, 6.95].forEach(y => fixedBox([5.5, .17, .95], [-9.7, y, -8.9], [0, 0, 0], wood));
+  for (let i = 0; i < 26; i++) {
+    const colors = [0x65452d, 0x8e5e39, 0xa17b52, 0x59604f, 0x7b4a36];
+    boxMesh([.18 + Math.random() * .42, .25 + Math.random() * .68, .32 + Math.random() * .35],
+      new THREE.MeshStandardMaterial({ color: colors[i % colors.length], roughness: .95 }),
+      [-11.85 + Math.random() * 4.35, 1.58 + (i % 4) * 1.9, -8.32]);
+  }
+  fixedBox([3.25, 1.75, .9], [-10.3, .88, -8.8], [0, 0, 0], wood);
+  room.drawer = boxMesh([2.65, .52, .84], new THREE.MeshStandardMaterial({ color: 0x95613d, roughness: .86, map: textures.wood }), [-10.25, 1.1, -8.24]);
+  room.drawer.name = 'stubborn drawer'; room.drawer.userData.action = 'drawer'; environmentPickables.push(room.drawer);
+}
+
+function buildWindowAndOutside() {
+  const frame = new THREE.Group(); frame.position.set(8.4, 5.2, -9.47); scene.add(frame);
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(6.35, 4.95), new THREE.MeshBasicMaterial({ color: 0x93b3b5 })); sky.position.z = .02; frame.add(sky);
+  const hills = new THREE.Mesh(new THREE.PlaneGeometry(6.35, 2.45), new THREE.MeshBasicMaterial({ color: 0x4f654d })); hills.position.set(0, -1.25, .045); frame.add(hills);
+  const fmat = new THREE.MeshStandardMaterial({ color: 0x3b281c, roughness: .9 });
+  [-3.25, 3.25].forEach(x => boxMesh([.25, 5.55, .26], fmat, [x, 0, .16], [0, 0, 0], frame));
+  [-2.55, 2.55].forEach(y => boxMesh([6.75, .25, .26], fmat, [0, y, .16], [0, 0, 0], frame));
+  boxMesh([.18, 5.1, .2], fmat, [0, 0, .17], [0, 0, 0], frame); boxMesh([6.3, .18, .2], fmat, [0, 0, .17], [0, 0, 0], frame);
+
+  room.tower = new THREE.Group(); room.tower.position.set(9.5, 4.25, -9.15); scene.add(room.tower);
+  const dark = new THREE.MeshStandardMaterial({ color: 0x3c3c35, roughness: .65, metalness: .42 });
+  const brass = new THREE.MeshStandardMaterial({ color: 0x9a7641, roughness: .45, metalness: .62 });
+  cylinderMesh(.13, 2.3, dark, [0, 0, 0], [0, 0, 0], 16, room.tower);
+  room.lanternMesh = cylinderMesh(.26, .44, new THREE.MeshStandardMaterial({ color: 0x554939, roughness: .35, emissive: 0x000000 }), [0, 1.2, 0], [0, 0, 0], 20, room.tower);
+  room.lanternLight = new THREE.PointLight(0xffca68, 0, 5); room.lanternLight.position.set(0, 1.2, .25); room.tower.add(room.lanternLight);
+  room.wind = new THREE.Group(); room.wind.position.set(0, 2, 0); room.tower.add(room.wind);
+  for (let i = 0; i < 4; i++) { const blade = boxMesh([1.1, .08, .13], brass, [.55, 0, 0], [0, 0, i * Math.PI / 2], room.wind); blade.castShadow = false; }
+}
+
+function buildMechanicalWall() {
+  const boardMat = new THREE.MeshStandardMaterial({ color: 0x9b6337, roughness: .96, map: textures.cardboard }); boardMat.map.repeat.set(3, 2);
+  fixedBox([9.8, 6.2, .35], [1.5, 4.2, -9.3], [0, 0, 0], boardMat);
+  mechanism.gears = [];
+  [[-1.2, 4.9, .72, 14], [.35, 5.15, 1.02, 18], [2.35, 4.55, .64, 12], [3.75, 5.1, .88, 16]].forEach(([x, y, r, teeth], i) => {
+    const g = new THREE.Group(); g.position.set(x, y, -9.02); scene.add(g);
+    const gm = new THREE.MeshStandardMaterial({ color: i % 2 ? 0x765e35 : 0xb18745, roughness: .45, metalness: .6 });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, .14, 10, 32), gm); g.add(ring);
+    for (let n = 0; n < teeth; n++) { const tooth = new THREE.Mesh(new THREE.BoxGeometry(.16, .28, .22), gm); const a = n / teeth * Math.PI * 2; tooth.position.set(Math.cos(a) * (r + .14), Math.sin(a) * (r + .14), 0); tooth.rotation.z = a; g.add(tooth); }
+    mechanism.gears.push(g);
+  });
+  mechanism.crank = new THREE.Group(); mechanism.crank.position.set(-2.4, 3.35, -8.95); scene.add(mechanism.crank);
+  const brass = new THREE.MeshStandardMaterial({ color: 0xb18745, roughness: .42, metalness: .65 });
+  const arm = boxMesh([1.25, .14, .17], brass, [.52, 0, 0], [0, 0, 0], mechanism.crank);
+  const handle = cylinderMesh(.13, .43, new THREE.MeshStandardMaterial({ color: 0x765036, roughness: .9 }), [1.08, 0, .12], [Math.PI / 2, 0, 0], 14, mechanism.crank);
+  arm.userData.action = handle.userData.action = 'crank'; environmentPickables.push(arm, handle);
+
+  mechanism.impactPlate = boxMesh([1.28, 1.28, .18], new THREE.MeshStandardMaterial({ color: 0x5a4b38, roughness: .6, metalness: .35, emissive: 0x000000 }), [4.85, 2.75, -8.95]);
+  mechanism.impactPlate.userData.action = 'impactPlate'; environmentPickables.push(mechanism.impactPlate);
+  fixedBox([1.28, 1.28, .18], [4.85, 2.75, -8.95]);
+  mechanism.impactCenter = new THREE.Vector3(4.85, 2.75, -8.55);
+
+  mechanism.pressure = boxMesh([2.25, .18, 2.2], new THREE.MeshStandardMaterial({ color: 0x6d5437, roughness: .74, metalness: .2, emissive: 0x000000 }), [-.45, .13, -5.55]);
+  mechanism.pressure.userData.action = 'pressure'; environmentPickables.push(mechanism.pressure);
+  fixedBox([2.25, .18, 2.2], [-.45, .03, -5.55]);
+  note('weight plate — the old label has been scratched away', [-.45, .28, -5.55], [0, 0, .01], [1.75, .65]);
+
+  mechanism.axleStand = fixedBox([.45, 2.1, .45], [2.9, 1.02, -6.4], [0, 0, 0], new THREE.MeshStandardMaterial({ color: 0x5c402d, roughness: .9 }));
+  mechanism.axleVisual = cylinderMesh(.11, 1.2, brass, [2.9, 2.15, -6.4], [Math.PI / 2, 0, 0], 16);
+  mechanism.axleVisual.userData.action = 'axle'; environmentPickables.push(mechanism.axleVisual);
+
+  mechanism.loft = new THREE.Group(); mechanism.loft.position.set(-8.4, 6.2, -8.25); mechanism.loft.scale.setScalar(.001); scene.add(mechanism.loft);
+  boxMesh([3.8, .25, 1.75], new THREE.MeshStandardMaterial({ color: 0x765036, roughness: .86, map: textures.wood }), [0, 0, 0], [0, 0, 0], mechanism.loft);
+  boxMesh([1.1, .75, .8], new THREE.MeshStandardMaterial({ color: 0x9d693d, roughness: 1, map: textures.cardboard }), [.72, .5, 0], [0, 0, 0], mechanism.loft);
+  mechanism.loftLight = new THREE.PointLight(0xffca7b, 0, 4); mechanism.loftLight.position.set(0, 1, 0); mechanism.loft.add(mechanism.loftLight);
+}
+
+function buildLightArea() {
+  lightSystem.origin = new THREE.Vector3(6.5, 4.15, 3.65);
+  lightSystem.direction = new THREE.Vector3(.18, -.1, -1).normalize();
+  const lamp = new THREE.Group(); lamp.position.copy(lightSystem.origin); scene.add(lamp); lightSystem.lamp = lamp;
+  const brass = new THREE.MeshStandardMaterial({ color: 0x9e7842, roughness: .45, metalness: .58 });
