@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17130f">
+<title>Wonder Studio — Playable Workshop</title>
+<style>
+:root{--ink:#2b1d12;--cream:#f1dfb5;--paper:#dfc590;--card:#b97639;--wood:#74472a;--brass:#caa451;--rope:#d8c59a;--night:#17130f;--glow:#ffd976}
+*{box-sizing:border-box;touch-action:manipulation}html,body{margin:0;min-height:100%;background:var(--night);font-family:Georgia,serif;color:var(--cream);overflow:hidden}
+button{font:inherit}.room{position:relative;width:100vw;height:100dvh;min-height:620px;overflow:hidden;background:linear-gradient(180deg,#55463a 0 46%,#44362d 73%,#2b231d 100%)}
+.room:before{content:"";position:absolute;inset:0;opacity:.2;background:repeating-linear-gradient(0deg,transparent 0 52px,#211913 53px 54px)}
+.dust{position:absolute;inset:-20%;pointer-events:none;opacity:.18;background-image:radial-gradient(circle,rgba(255,229,178,.78) 0 1px,transparent 1.7px);background-size:93px 75px;animation:dust 24s linear infinite}@keyframes dust{to{background-position:170px 240px}}
+.window{position:absolute;right:4vw;top:5.5vh;width:min(25vw,330px);height:min(37vh,390px);border:14px solid #583821;background:linear-gradient(145deg,#bfd6d5 0,#eadfba 52%,#efbe72 100%);box-shadow:0 18px 45px rgba(0,0,0,.38),inset 0 0 0 4px #9b6c3f}
+.window:before,.window:after{content:"";position:absolute;background:#5a3a24}.window:before{left:48%;top:0;bottom:0;width:7px}.window:after{top:49%;left:0;right:0;height:7px}.distant{position:absolute;right:22%;top:25%;width:17px;height:17px;border-radius:50%;background:#6a5337;transition:1s}.distant.on{background:#ffe39b;box-shadow:0 0 14px 7px #ffd66e,0 0 55px 20px rgba(255,214,110,.7)}
+.sunbeam{position:absolute;right:14vw;top:32vh;width:48vw;height:55vh;background:linear-gradient(145deg,rgba(255,222,146,.22),transparent 69%);clip-path:polygon(25% 0,100% 0,64% 100%,0 100%);pointer-events:none;transition:.8s}.sunbeam.on{filter:brightness(1.6);opacity:1}
+.title{position:absolute;left:max(18px,env(safe-area-inset-left));top:max(16px,env(safe-area-inset-top));z-index:4}.title small{display:block;letter-spacing:.18em;color:#c5ae80;font-size:10px}.title h1{font-size:clamp(34px,5vw,62px);font-weight:400;margin:3px 0 0;text-shadow:0 3px 12px #000}.title p{margin:4px 0;color:#c7b28d;font-style:italic;font-size:13px}
+.question{position:absolute;left:3vw;top:16vh;z-index:5;width:215px;padding:15px;background:var(--paper);color:var(--ink);box-shadow:5px 8px 18px rgba(0,0,0,.32);transform:rotate(-3deg);cursor:pointer;transition:.3s}.question.closed{height:50px;overflow:hidden}.question.used{opacity:.72}.question strong{font-size:14px;letter-spacing:.08em}.question p{font-size:18px;line-height:1.35;margin:15px 0 2px}
+.bench{position:absolute;left:5vw;right:18vw;bottom:15vh;height:19vh;background:linear-gradient(#aa7040,#704424);border-top:15px solid #c18752;box-shadow:0 25px 38px rgba(0,0,0,.36)}
+.board-wrap{position:absolute;left:10vw;bottom:28vh;width:min(66vw,1040px);height:min(55vh,640px);filter:drop-shadow(0 17px 10px rgba(28,16,8,.42))}
+svg{width:100%;height:100%;overflow:visible;user-select:none;-webkit-user-select:none}.card{fill:#b9783c;stroke:#754526;stroke-width:7}.card-edge{fill:none;stroke:#d08e50;stroke-width:9;opacity:.7}.wood{fill:#77482a;stroke:#4e2e1b;stroke-width:6}.metal{fill:#c5a252;stroke:#755c30;stroke-width:9}.rope{fill:none;stroke:var(--rope);stroke-width:7;stroke-linecap:round}.ramp,.weight,.tray{cursor:grab}.ramp:active,.weight:active{cursor:grabbing}.handle{fill:#d3aa59;stroke:#72552d;stroke-width:6}.marble{fill:url(#glass);opacity:.18;transition:opacity .2s}.marble.placed{opacity:1}.lever{transform-origin:535px 446px}.lever.hit{animation:lever .42s ease}@keyframes lever{45%{transform:rotate(20deg)}100%{transform:none}}.wheel{transform-origin:610px 305px}.wheel.spin{animation:spin 1.4s cubic-bezier(.15,.72,.18,1)}@keyframes spin{to{transform:rotate(720deg)}}.cup{transition:transform .9s ease}.cup.lift{transform:translateY(-105px)}.filament{fill:none;stroke:#7c6138;stroke-width:8;stroke-dasharray:12 12;opacity:.35;transition:.7s}.filament.on{stroke:#ffd979;opacity:1;filter:drop-shadow(0 0 14px #ffc94d);transform-origin:930px 255px;transform:scale(1.08)}.pulse{fill:none;stroke:#ffdc88;stroke-width:8;stroke-linecap:round;stroke-dasharray:12 30;opacity:0;filter:drop-shadow(0 0 8px #ffc85b)}.pulse.go{opacity:1;animation:pulse 1.3s linear forwards}@keyframes pulse{from{stroke-dashoffset:280}to{stroke-dashoffset:0;opacity:0}}.marble.moving{transition:none}
+.instructions{position:absolute;left:4vw;right:4vw;bottom:max(90px,calc(env(safe-area-inset-bottom) + 76px));z-index:4;text-align:center;color:#e2cca2;font-size:clamp(12px,1.5vw,17px);text-shadow:0 2px 5px #000}.panel{position:absolute;left:0;right:0;bottom:0;z-index:7;display:flex;align-items:center;gap:12px;padding:13px max(16px,env(safe-area-inset-right)) max(13px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:rgba(24,18,14,.93);border-top:1px solid #7e6244}.status{flex:1;color:#ead7ae;font-style:italic;font-size:14px;line-height:1.3}.panel button{border:1px solid #b58e58;background:#67472e;color:#f5e4bf;padding:10px 13px;cursor:pointer}.panel button:active{transform:translateY(1px);background:#80603d}
+.mode{position:absolute;right:3vw;top:48vh;color:#d8c59c;font-size:11px;letter-spacing:.12em;text-transform:uppercase;writing-mode:vertical-rl;opacity:.65}
+@media(max-width:760px){.room{min-height:560px}.title h1{font-size:34px}.title p{display:none}.question{top:12vh;width:170px;padding:11px}.question p{font-size:15px}.window{right:2vw;top:11vh;width:32vw;height:28vh;border-width:9px}.board-wrap{left:-3vw;bottom:25vh;width:96vw;height:51vh}.bench{left:0;right:0;bottom:17vh}.instructions{bottom:106px;padding:0 16px}.panel{align-items:stretch}.status{font-size:12px}.panel button{font-size:12px;padding:9px 10px}.mode{display:none}}
+@media(max-height:700px){.question{display:none}.board-wrap{bottom:23vh;height:56vh}.window{height:30vh}.instructions{display:none}}
+@media(prefers-reduced-motion:reduce){.dust{animation:none}.wheel.spin,.lever.hit,.pulse.go{animation-duration:.01ms}}
+</style>
+</head>
+<body>
+<main class="room" aria-label="Wonder Studio playable mechanism">
+<div class="dust"></div><div id="beam" class="sunbeam"></div>
+<header class="title"><small>A LIGHTWEIGHT PLAYABLE STUDY</small><h1>Wonder Studio</h1><p>No downloads. No external engine. Touch the mechanism.</p></header>
+<section id="question" class="question closed" tabindex="0"><strong>QUESTION CARD</strong><p>What changes when weight becomes a signal?</p></section>
+<div class="window"><div id="distant" class="distant"></div></div><div class="bench"></div>
+<div class="board-wrap">
+<svg id="machine" viewBox="0 0 1100 650" role="img" aria-label="Cardboard marble and counterweight mechanism">
+<defs><radialGradient id="glass" cx="30%" cy="25%"><stop offset="0" stop-color="#fff"/><stop offset=".32" stop-color="#8eb5ba"/><stop offset=".78" stop-color="#2c4650"/></radialGradient></defs>
+<path class="card" d="M75 78 L985 48 L1040 565 L115 605 Z"/><path class="card-edge" d="M93 95 L968 67 L1019 548 L132 584 Z"/>
+<text x="700" y="105" fill="#56351f" font-family="Comic Sans MS,cursive" font-size="23" transform="rotate(-3 700 105)">prototype 10 — change one thing</text>
+<g id="ramp" class="ramp"><rect x="170" y="418" width="350" height="25" rx="5" class="wood"/><circle cx="500" cy="430" r="19" class="handle"/><path d="M185 430 L225 430" stroke="#dba568" stroke-width="4" stroke-dasharray="5 5"/></g>
+<g id="tray" class="tray"><path d="M105 365 L180 365 L164 415 L118 415 Z" fill="#8b5b37" stroke="#54331f" stroke-width="5"/><text x="110" y="350" fill="#4b301e" font-size="17">marble tray</text></g>
+<circle id="marble" class="marble" cx="150" cy="392" r="18"/>
+<rect id="lever" class="lever wood" x="535" y="446" width="140" height="18" rx="5"/>
+<g id="wheel" class="wheel"><circle cx="610" cy="305" r="91" class="metal"/><circle cx="610" cy="305" r="65" fill="#9e783c" stroke="#6d542c" stroke-width="5"/><path d="M610 221 V389 M526 305 H694 M551 246 L669 364 M669 246 L551 364" stroke="#6d542c" stroke-width="10"/><circle cx="610" cy="305" r="17" fill="#4e3924"/></g>
+<circle cx="790" cy="198" r="48" class="metal"/><circle cx="790" cy="198" r="23" fill="#674f2c"/>
+<path id="rope" class="rope" d="M790 198 C800 220 830 240 842 270 L842 360"/>
+<g id="weight" class="weight"><path d="M817 265 Q842 238 867 265" fill="none" stroke="#d7c194" stroke-width="7"/><rect x="810" y="265" width="64" height="75" rx="8" class="metal"/><path d="M825 285 H859 M825 302 H859" stroke="#6b512b" stroke-width="5"/></g>
+<g id="cup" class="cup"><path d="M715 405 L790 405 L777 474 L728 474 Z" fill="#915c35" stroke="#57351f" stroke-width="6"/><line x1="752" y1="405" x2="752" y2="265" class="rope"/></g>
+<circle id="filament" class="filament" cx="930" cy="255" r="57"/><path id="pulse" class="pulse" d="M545 455 C625 430 640 345 700 320 S770 255 790 198 S875 195 930 255"/>
+</svg>
+</div>
+<div class="mode">direct manipulation study</div>
+<div class="instructions"><strong>Drag the ramp handle.</strong> Drag the brass weight. Touch the marble tray once to place, again to release.</div>
+<footer class="panel"><div id="status" class="status">The room is quiet. The mechanism is waiting for a first adjustment.</div><button id="reset">Reset</button></footer>
+</main>
+<script>
+(() => {
+'use strict';
+const byId = id => document.getElementById(id);
+const svg=byId('machine'),ramp=byId('ramp'),weight=byId('weight'),tray=byId('tray'),marble=byId('marble'),lever=byId('lever'),wheel=byId('wheel'),rope=byId('rope'),cup=byId('cup'),filament=byId('filament'),pulse=byId('pulse'),distant=byId('distant'),beam=byId('beam'),status=byId('status');
+let angle=7,weightY=265,placed=false,busy=false,dragging='',audioContext=null;
+const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+const say=text=>{status.textContent=text;};
+const point=e=>{const r=svg.getBoundingClientRect();return{x:(e.clientX-r.left)*1100/r.width,y:(e.clientY-r.top)*650/r.height};};
+function tone(freq=170,duration=.12,gain=.024,type='triangle'){try{audioContext||=new(window.AudioContext||window.webkitAudioContext)();if(audioContext.state==='suspended')audioContext.resume();const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.0001,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(gain,audioContext.currentTime+.012);g.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+duration);o.connect(g).connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration+.03);}catch(e){}}
+const tension=()=>Math.round((weightY-220)/2.45);
+function updateRamp(){ramp.setAttribute('transform',`rotate(${angle} 170 430)`);if(angle<-13)say('The ramp is steep. The marble may jump past the lever.');else if(angle>0)say('The ramp is shallow. The marble will lose too much height.');else say('The ramp now points toward the lever.');}
+function updateWeight(){weight.setAttribute('transform',`translate(0 ${weightY-265})`);rope.setAttribute('d',`M790 198 C800 220 830 232 842 ${weightY+5} L842 ${weightY+8}`);const v=tension();if(v<43)say('The cord is slack. The wheel may turn without lifting the cup.');else if(v>70)say('The cord is over-tensioned. The cup may rise before the signal reaches it.');else say('The rope settles into a useful tension.');}
+function begin(kind,e){if(busy)return;dragging=kind;e.currentTarget.setPointerCapture?.(e.pointerId);tone(kind==='ramp'?145:105,.08,.014,'sawtooth');e.preventDefault();}
+ramp.addEventListener('pointerdown',e=>begin('ramp',e));weight.addEventListener('pointerdown',e=>begin('weight',e));
+window.addEventListener('pointermove',e=>{if(!dragging||busy)return;const p=point(e);if(dragging==='ramp'){angle=clamp(Math.atan2(p.y-430,p.x-170)*180/Math.PI,-20,12);updateRamp();}else{weightY=clamp(p.y-34,225,465);updateWeight();}});
+window.addEventListener('pointerup',()=>{if(dragging)tone(178,.1,.018);dragging='';});
+tray.addEventListener('click',()=>{if(busy)return;if(!placed){placed=true;marble.classList.add('placed');say('The marble waits in the tray. Touch it again to test your idea.');tone(235,.16,.027);}else release();});
+function moveMarble(x,y,duration,done){const sx=150,sy=392,start=performance.now();function frame(now){const p=clamp((now-start)/duration,0,1),e=p*p;marble.setAttribute('cx',String(sx+(x-sx)*e));marble.setAttribute('cy',String(sy+(y-sy)*e-Math.sin(p*Math.PI)*18));if(p<1)requestAnimationFrame(frame);else done();}requestAnimationFrame(frame);}
+function release(){busy=true;placed=false;const aligned=angle>=-13&&angle<=0;say('The marble carries your adjustment into the mechanism…');tone(130,.2,.022,'sine');moveMarble(aligned?548:500,aligned?450:570,950,()=>{if(!aligned){say(angle<-13?'The marble jumped the lever. The steep ramp left a clear trace.':'The shallow ramp absorbed too much motion.');tone(82,.22,.034);setTimeout(()=>{busy=false;marble.classList.remove('placed');},500);return;}lever.classList.remove('hit');wheel.classList.remove('spin');void lever.getBoundingClientRect();lever.classList.add('hit');wheel.classList.add('spin');tone(92,.18,.044,'square');setTimeout(evaluate,600);});}
+function evaluate(){const v=tension();if(v<43){say('The wheel turns, but the slack cord carries almost no lift. Move the weight and try again.');tone(78,.3,.025);setTimeout(()=>busy=false,700);return;}if(v>70){cup.classList.add('lift');say('Too much preload: the cup rises early and the signal is lost.');tone(68,.38,.03,'sawtooth');setTimeout(()=>{cup.classList.remove('lift');busy=false;},1300);return;}cup.classList.add('lift');pulse.classList.remove('go');void pulse.getBoundingClientRect();pulse.classList.add('go');say('Tension carries the motion through the pulley. The workshop answers beyond the window.');tone(196,.55,.025);setTimeout(()=>tone(294,.7,.022),180);setTimeout(()=>tone(440,.9,.018),380);setTimeout(()=>{filament.classList.add('on');distant.classList.add('on');beam.classList.add('on');},650);setTimeout(()=>busy=false,1700);}
+function reset(){angle=7;weightY=265;placed=false;busy=false;dragging='';ramp.setAttribute('transform','rotate(7 170 430)');weight.removeAttribute('transform');rope.setAttribute('d','M790 198 C800 220 830 240 842 270 L842 360');marble.setAttribute('cx','150');marble.setAttribute('cy','392');marble.classList.remove('placed');cup.classList.remove('lift');filament.classList.remove('on');distant.classList.remove('on');beam.classList.remove('on');wheel.classList.remove('spin');pulse.classList.remove('go');say('The mechanism rests again. You remember what the last attempt revealed.');tone(150,.14,.018);}
+byId('reset').addEventListener('click',reset);
+const q=byId('question');function openQuestion(){if(q.classList.contains('used'))return;q.classList.remove('closed');q.classList.add('used');}q.addEventListener('click',openQuestion);q.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openQuestion();}});
+})();
+</script>
+</body>
+</html>
