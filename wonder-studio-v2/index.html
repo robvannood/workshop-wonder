@@ -7,6 +7,7 @@
   <title>Wonder Studio — Construction Study</title>
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./atmosphere.css">
+  <link rel="stylesheet" href="./balance.css">
   <script type="importmap">{
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
@@ -38,10 +39,24 @@
   </svg>
   <button id="traceForce" aria-pressed="false" title="Hold to reveal how force travels"><span class="trace-icon">⌁</span><span>hold to trace force</span></button>
 
+  <section id="balanceRig" class="too-light" aria-label="Adjustable counterweight study">
+    <small>counterweight study</small>
+    <strong>Drag the brass weight</strong>
+    <div class="balance-stage">
+      <div class="balance-zone"></div>
+      <div class="balance-rail"></div>
+      <div id="balanceRope" class="balance-rope"></div>
+      <div class="balance-cup"></div>
+      <div id="balanceWeight" class="balance-weight" role="slider" aria-label="Counterweight position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="20" tabindex="0"><div class="hook"></div><div class="body"></div></div>
+      <div class="balance-pulse"></div>
+    </div>
+    <div class="balance-readout"><span id="balanceDetail">The rope moves, but the cup keeps the energy.</span><em id="balanceState">not enough tension</em></div>
+  </section>
+
   <div id="loading"><div class="loading-card"><div class="loading-mark"></div><h1>Wonder Studio</h1><p>Preparing weight, resistance, light, and unfinished possibilities…</p></div></div>
   <div id="error"><div><h1>The workshop could not open.</h1><p>This build requires a modern browser with WebGL 2 and WebAssembly.</p></div></div>
   <div id="veil"></div>
-  <header id="title"><h1>Wonder Studio</h1><p>construction study 04 · follow the force</p></header>
+  <header id="title"><h1>Wonder Studio</h1><p>construction study 05 · balance the signal</p></header>
   <div id="reticle"></div>
   <div id="status" role="status"></div>
   <div id="mode"><span id="modeLabel">explore</span></div>
@@ -81,8 +96,9 @@
   </div>
 
   <div id="readout"><strong id="selectedName">Nothing selected</strong><span id="selectedDetail">Touch a loose material to begin.</span></div>
-  <div id="hint">The lantern outside can be awakened by impact, sustained weight, or redirected blue light. Hold “trace force” whenever the room becomes difficult to read.</div>
+  <div id="hint">The lantern outside can be awakened by impact, sustained weight, or redirected blue light. Balance the brass weight until tension becomes a signal; hold “trace force” whenever the room becomes difficult to read.</div>
   <script type="module" src="./app.js"></script>
   <script type="module" src="./atmosphere.js"></script>
+  <script type="module" src="./balance.js"></script>
 </body>
 </html>
