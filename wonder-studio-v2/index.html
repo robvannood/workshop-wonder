@@ -30,10 +30,18 @@
   <div id="atmosphere" aria-hidden="true"><div class="dust dust-a"></div><div class="dust dust-b"></div><div class="grain"></div></div>
   <button id="listen" aria-pressed="false" title="Toggle workshop ambience"><i></i><span id="whisper">listen to the room</span></button>
 
+  <svg id="forceTrace" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+    <defs><filter id="traceGlow"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <path class="trace-shadow" d="M180 420 C300 390 355 310 455 330 S610 380 700 260 S820 180 905 150"/>
+    <path class="trace-line" d="M180 420 C300 390 355 310 455 330 S610 380 700 260 S820 180 905 150"/>
+    <circle class="trace-node n1" cx="180" cy="420" r="7"/><circle class="trace-node n2" cx="455" cy="330" r="7"/><circle class="trace-node n3" cx="700" cy="260" r="7"/><circle class="trace-node n4" cx="905" cy="150" r="9"/>
+  </svg>
+  <button id="traceForce" aria-pressed="false" title="Hold to reveal how force travels"><span class="trace-icon">⌁</span><span>hold to trace force</span></button>
+
   <div id="loading"><div class="loading-card"><div class="loading-mark"></div><h1>Wonder Studio</h1><p>Preparing weight, resistance, light, and unfinished possibilities…</p></div></div>
   <div id="error"><div><h1>The workshop could not open.</h1><p>This build requires a modern browser with WebGL 2 and WebAssembly.</p></div></div>
   <div id="veil"></div>
-  <header id="title"><h1>Wonder Studio</h1><p>construction study 03 · listen before you move</p></header>
+  <header id="title"><h1>Wonder Studio</h1><p>construction study 04 · follow the force</p></header>
   <div id="reticle"></div>
   <div id="status" role="status"></div>
   <div id="mode"><span id="modeLabel">explore</span></div>
@@ -73,7 +81,7 @@
   </div>
 
   <div id="readout"><strong id="selectedName">Nothing selected</strong><span id="selectedDetail">Touch a loose material to begin.</span></div>
-  <div id="hint">The lantern outside can be awakened by impact, sustained weight, or redirected blue light. The exact mechanism is yours.</div>
+  <div id="hint">The lantern outside can be awakened by impact, sustained weight, or redirected blue light. Hold “trace force” whenever the room becomes difficult to read.</div>
   <script type="module" src="./app.js"></script>
   <script type="module" src="./atmosphere.js"></script>
 </body>
