@@ -16,6 +16,8 @@ function initialize() {
   buildRoom(); buildCatalog();
   if (!restore()) STARTING_COMPONENTS.forEach(([key, p, r]) => createComponent(key, p, r));
   bindUI(); pushHistory(false); animate();
+  document.body.dataset.engineReady = 'true';
+  window.dispatchEvent(new CustomEvent('wonder-engine-ready'));
   setTimeout(() => { ui.loading.classList.add('hidden'); say('Loose materials now fall, collide, balance, and carry force through real connections.', 5200); }, 900);
 }
 
