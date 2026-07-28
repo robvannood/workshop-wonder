@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b130e">
+<title>Wonder Studio — Mechanical Chain</title>
+<style>
+:root{--cream:#f2dfb8;--ink:#21150e;--brass:#c89a46;--wood:#7a4c2e}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#17110d;color:var(--cream);font-family:Georgia,serif}
+body{background:radial-gradient(circle at 22% 14%,#5d4936 0,#2a2018 37%,#130e0a 82%)}
+canvas{display:block;width:100vw;height:100vh;touch-action:none;cursor:grab}
+canvas.dragging{cursor:grabbing}
+.top{position:fixed;left:18px;top:14px;z-index:5;text-shadow:0 3px 18px #000;pointer-events:none}
+.top small{font:10px/1.2 Arial,sans-serif;letter-spacing:.2em;color:#ceb47d}.top h1{font-weight:400;margin:4px 0 1px;font-size:clamp(28px,4.7vw,52px)}.top p{margin:0;color:#d4c09a;font-style:italic;font-size:13px}
+.controls{position:fixed;right:14px;top:14px;z-index:6;display:flex;gap:8px}
+button{border:1px solid #9b754b;background:#382519dd;color:#f1ddb6;padding:9px 12px;font:13px Georgia,serif;backdrop-filter:blur(8px)}
+.bottom{position:fixed;left:14px;right:14px;bottom:14px;z-index:6;display:flex;gap:10px;align-items:end;pointer-events:none}
+.status{flex:1;max-width:760px;padding:11px 14px;background:#17110ddd;border:1px solid #7a5c3d;color:#ead8b0;font-style:italic;backdrop-filter:blur(8px)}
+.readout{padding:10px 13px;background:#17110ddd;border:1px solid #7a5c3d;font:12px/1.35 Arial,sans-serif;color:#d6c399;min-width:190px;text-align:right}
+.badge{position:fixed;right:16px;bottom:88px;background:#24170fd9;border:1px solid #8e6b44;padding:8px 11px;font:11px Arial,sans-serif;letter-spacing:.08em;color:#d9c49a}
+@media(max-width:700px){.top h1{font-size:30px}.top p{font-size:11px}.readout{display:none}.status{font-size:12px}.controls{top:auto;bottom:78px}.badge{display:none}}
+</style>
+</head>
+<body>
+<div class="top"><small>WONDER STUDIO</small><h1>The weight of connection</h1><p>Drag the ramp. Release the ball. Watch force travel through the machine.</p></div>
+<div class="controls"><button id="sound">sound: off</button><button id="reset">reset</button></div>
+<canvas id="c" aria-label="Interactive mechanical chain benchmark"></canvas>
+<div class="bottom"><div id="status" class="status">Drag the wooden ramp to change its angle, then tap the glass ball.</div><div id="readout" class="readout"></div></div>
+<div class="badge">MECHANICAL CHAIN BENCHMARK · 08</div>
+<script>
+(() => {
+'use strict';
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const status=document.getElementById('status'),readout=document.getElementById('readout');
+let W=0,H=0,dpr=1,lastT=performance.now(),audioCtx=null,soundOn=false,ambientTimer=0;
+const S={rampAngle:-0.22,ball:{s:28,v:0,r:15,released:false,air:false,x:0,y:0,vx:0,vy:0,spin:0},lever:{a:0,w:0},wheel:{a:0,w:0},cup:{y:0,v:0},weight:{y:0,v:0},ropeTension:0,done:false,drag:false};
+const G=980;
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function lerp(a,b,t){return a+(b-a)*t}
+function ease(t){return t*t*(3-2*t)}
+function resize(){dpr=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+function ac(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
+function tone(f,d=.12,g=.025,type='triangle',delay=0){if(!soundOn)return;const a=ac(),o=a.createOscillator(),v=a.createGain();o.type=type;o.frequency.setValueAtTime(f,a.currentTime+delay);v.gain.setValueAtTime(.0001,a.currentTime+delay);v.gain.exponentialRampToValueAtTime(g,a.currentTime+delay+.01);v.gain.exponentialRampToValueAtTime(.0001,a.currentTime+delay+d);o.connect(v).connect(a.destination);o.start(a.currentTime+delay);o.stop(a.currentTime+delay+d+.03)}
+function noise(d=.12,g=.018,cut=900){if(!soundOn)return;const a=ac(),n=Math.max(1,Math.floor(a.sampleRate*d)),b=a.createBuffer(1,n,a.sampleRate),data=b.getChannelData(0);for(let i=0;i<n;i++)data[i]=(Math.random()*2-1)*(1-i/n);const src=a.createBufferSource(),filter=a.createBiquadFilter(),gain=a.createGain();src.buffer=b;filter.type='lowpass';filter.frequency.value=cut;gain.gain.value=g;src.connect(filter).connect(gain).connect(a.destination);src.start()}
+function ambience(){clearTimeout(ambientTimer);if(!soundOn)return;tone([73,98,110,147][Math.floor(Math.random()*4)],2.4,.004,'sine');ambientTimer=setTimeout(ambience,3200+Math.random()*3200)}
+document.getElementById('sound').onclick=()=>{soundOn=!soundOn;document.getElementById('sound').textContent='sound: '+(soundOn?'on':'off');if(soundOn){ac();tone(110,.4,.018);ambience()}else clearTimeout(ambientTimer)};
+function layout(){const scale=clamp(W/1180,.66,1.15),baseY=H*0.67;return{scale,baseY,ramp:{x:W*.13,y:baseY-125*scale,len:330*scale},pivot:{x:W*.48,y:baseY-24*scale},wheel:{x:W*.61,y:baseY-150*scale,r:82*scale},pulley:{x:W*.79,y:baseY-245*scale,r:36*scale},cupX:W*.87,weightX:W*.72,ground:baseY+122*scale}}
+function rampGeom(L){const a=S.rampAngle,x1=L.ramp.x,y1=L.ramp.y,x2=x1+Math.cos(a)*L.ramp.len,y2=y1+Math.sin(a)*L.ramp.len;return{x1,y1,x2,y2,a,len:L.ramp.len,tx:Math.cos(a),ty:Math.sin(a),nx:-Math.sin(a),ny:Math.cos(a)}}
+function reset(){Object.assign(S.ball,{s:28,v:0,released:false,air:false,vx:0,vy:0,spin:0});S.lever.a=0;S.lever.w=0;S.wheel.a=0;S.wheel.w=0;S.cup.y=0;S.cup.v=0;S.weight.y=0;S.weight.v=0;S.ropeTension=0;S.done=false;status.textContent='Drag the wooden ramp to change its angle, then tap the glass ball.';tone(120,.1,.012)}
+document.getElementById('reset').onclick=reset;
+function ballPos(L){const R=rampGeom(L);if(!S.ball.air){S.ball.x=R.x1+R.tx*S.ball.s+R.nx*(-S.ball.r-7);S.ball.y=R.y1+R.ty*S.ball.s+R.ny*(-S.ball.r-7)}return S.ball}
+function hit(p,x,y,r){return Math.hypot(p.x-x,p.y-y)<=r}
+function pointer(e){const b=canvas.getBoundingClientRect();return{x:(e.clientX-b.left)*W/b.width,y:(e.clientY-b.top)*H/b.height}}
+canvas.addEventListener('pointerdown',e=>{const p=pointer(e),L=layout(),R=rampGeom(L),b=ballPos(L);if(hit(p,b.x,b.y,38)){if(!S.ball.released){S.ball.released=true;status.textContent='The ball has weight now. Watch the contact points.';tone(520,.09,.018,'sine');}return}const hx=R.x1+R.tx*R.len*.82,hy=R.y1+R.ty*R.len*.82;if(hit(p,hx,hy,70)){S.drag=true;canvas.classList.add('dragging');canvas.setPointerCapture?.(e.pointerId)}});
+canvas.addEventListener('pointermove',e=>{if(!S.drag)return;const p=pointer(e),L=layout();S.rampAngle=clamp(Math.atan2(p.y-L.ramp.y,p.x-L.ramp.x),-.52,.05);S.ball.s=Math.min(S.ball.s,L.ramp.len-40)});
+function up(){S.drag=false;canvas.classList.remove('dragging')}
+canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+function update(dt){dt=Math.min(.025,dt);const L=layout(),R=rampGeom(L),B=S.ball;
+ if(B.released&&!B.air){const accel=G*Math.sin(-R.a)-28*Math.sign(B.v||1);B.v=Math.max(0,B.v+accel*dt);B.s+=B.v*dt;B.spin+=B.v/B.r*dt;if(B.s>R.len-18){B.air=true;B.x=R.x2+R.nx*(-B.r-7);B.y=R.y2+R.ny*(-B.r-7);B.vx=R.tx*B.v;B.vy=R.ty*B.v;noise(.12,.015,1200)}}
+ if(B.air&&!S.done){B.vy+=G*dt;B.x+=B.vx*dt;B.y+=B.vy*dt;B.spin+=Math.hypot(B.vx,B.vy)/B.r*dt;const P=L.pivot,leverY=P.y-14*S.lever.a;const within=B.x>P.x-80&&B.x<P.x+25&&B.y+B.r>leverY-12&&B.y-B.r<leverY+28;if(within&&B.vy>0){const impact=Math.hypot(B.vx,B.vy);S.lever.w-=clamp(impact/340,1.1,3.1);B.vy=-impact*.18;B.vx*=.38;tone(155,.18,.04,'square');noise(.08,.025,650)}if(B.y>L.ground){B.y=L.ground;B.vy*=-.28;B.vx*=.72;if(Math.abs(B.vy)<26){B.vy=0;B.vx=0}}}
+ S.lever.w+=(-S.lever.a*16-S.lever.w*5.2)*dt;S.lever.a+=S.lever.w*dt;S.lever.a=clamp(S.lever.a,-.78,.18);
+ const pawl=Math.max(0,-S.lever.w*1.7)+Math.max(0,-S.lever.a-.12)*1.6;S.wheel.w+=pawl*dt;const load=.28+Math.abs(S.weight.y-S.cup.y)*.002;S.wheel.w-=S.wheel.w*(.55+load)*dt;S.wheel.a+=S.wheel.w*dt;
+ const wound=Math.max(0,S.wheel.a)*34*L.scale,targetWeight=clamp(wound,0,125*L.scale),targetCup=clamp(wound*.72,0,92*L.scale);S.ropeTension=clamp(Math.abs(targetWeight-S.weight.y)/28,0,1);
+ S.weight.v+=(targetWeight-S.weight.y)*18*dt-S.weight.v*7*dt;S.weight.y+=S.weight.v*dt;S.cup.v+=(targetCup-S.cup.y)*14*dt-S.cup.v*6.5*dt;S.cup.y+=S.cup.v*dt;
+ if(!S.done&&S.cup.y>68*L.scale){S.done=true;status.textContent='The chain completed: impact became rotation, tension, lift, and a revealed instruction.';tone(220,.5,.035,'sine');tone(330,.7,.025,'sine',.15);tone(495,1,.02,'sine',.3)}
+}
+function line(x1,y1,x2,y2,w,color){ctx.strokeStyle=color;ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke()}
+function circle(x,y,r,fill,stroke='#0000',sw=0){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();if(sw){ctx.strokeStyle=stroke;ctx.lineWidth=sw;ctx.stroke()}}
+function roundRect(x,y,w,h,r,fill,stroke,sw=1){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=sw;ctx.stroke()}}
+function woodGradient(x,y,w,h){const g=ctx.createLinearGradient(x,y,x+w,y+h);g.addColorStop(0,'#a36b42');g.addColorStop(.5,'#704329');g.addColorStop(1,'#b47b4e');return g}
+function brassGradient(x,y,r){const g=ctx.createRadialGradient(x-r*.4,y-r*.45,r*.1,x,y,r);g.addColorStop(0,'#f4d47a');g.addColorStop(.42,'#c49642');g.addColorStop(1,'#6f5128');return g}
+function drawBackground(L){ctx.fillStyle='#2b2018';ctx.fillRect(0,0,W,H);const glow=ctx.createRadialGradient(W*.22,H*.18,20,W*.22,H*.18,W*.55);glow.addColorStop(0,'#9d7b4c55');glow.addColorStop(1,'#0000');ctx.fillStyle=glow;ctx.fillRect(0,0,W,H);ctx.strokeStyle='#6e554033';ctx.lineWidth=2;for(let y=95;y<H;y+=52){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y+Math.sin(y)*4);ctx.stroke()}ctx.fillStyle='#3c291b';ctx.fillRect(0,L.ground,W,H-L.ground);ctx.strokeStyle='#78503555';for(let x=0;x<W;x+=92){ctx.beginPath();ctx.moveTo(x,L.ground);ctx.lineTo(x-45,H);ctx.stroke()}for(let i=0;i<35;i++){const x=(i*137+performance.now()*.004*(i%3+1))%W,y=(i*83)%H*.7;ctx.fillStyle='#f2d9a5'+(i%2?'18':'0d');circle(x,y,1+(i%3)*.4,ctx.fillStyle)}}
+function drawRamp(L){const R=rampGeom(L);ctx.save();ctx.translate(R.x1,R.y1);ctx.rotate(R.a);ctx.shadowColor='#000b';ctx.shadowBlur=18;ctx.shadowOffsetY=12;roundRect(-18,-18,R.len+36,36,8,woodGradient(0,-18,R.len,36),'#3d2417',4);ctx.shadowColor='transparent';for(let x=12;x<R.len;x+=34)line(x,-12,x+12,12,2,'#d49a6044');line(0,-26,R.len,-26,5,'#d7b180');line(0,26,R.len,26,5,'#4c2d1c');circle(0,0,13,brassGradient(0,0,13),'#4d351b',3);ctx.restore();const hx=R.x1+R.tx*R.len*.82,hy=R.y1+R.ty*R.len*.82;circle(hx,hy,8,'#e1c17c','#5c4024',2)}
+function drawBall(L){const B=ballPos(L);ctx.save();ctx.translate(B.x,B.y);ctx.rotate(B.spin);ctx.shadowColor='#000c';ctx.shadowBlur=13;ctx.shadowOffsetY=7;const g=ctx.createRadialGradient(-6,-7,2,0,0,B.r);g.addColorStop(0,'#fff');g.addColorStop(.25,'#b8eced');g.addColorStop(.68,'#46808a');g.addColorStop(1,'#17323a');circle(0,0,B.r,g,'#bddfe1',2);ctx.shadowColor='transparent';line(-10,0,10,0,2,'#ffffff55');line(0,-10,0,10,2,'#16374088');ctx.restore()}
+function drawLever(L){const P=L.pivot;ctx.save();ctx.translate(P.x,P.y);ctx.rotate(S.lever.a);ctx.shadowColor='#000b';ctx.shadowBlur=14;roundRect(-105,-14,205,28,7,woodGradient(-105,-14,205,28),'#3f2819',4);ctx.shadowColor='transparent';roundRect(70,-21,38,42,6,brassGradient(88,0,30),'#4e371d',3);ctx.restore();circle(P.x,P.y,18,brassGradient(P.x,P.y,18),'#483019',4);line(P.x,P.y+18,P.x-25,L.ground,13,'#6f452a')}
+function drawWheel(L){const w=L.wheel;ctx.save();ctx.translate(w.x,w.y);ctx.rotate(S.wheel.a);ctx.shadowColor='#000b';ctx.shadowBlur=18;circle(0,0,w.r,brassGradient(0,0,w.r),'#4b351d',8);circle(0,0,w.r*.69,'#3c281b','#d2ae60',7);for(let i=0;i<8;i++){ctx.rotate(Math.PI/4);roundRect(-6,-w.r*.66,12,w.r*.54,4,'#b48943','#5f4524',2)}circle(0,0,18,'#2a1d15','#e0bf70',6);ctx.restore();roundRect(w.x-w.r-14,w.y-18,22,36,7,'#5c3b27','#2b1a11',3);roundRect(w.x+w.r-8,w.y-18,22,36,7,'#5c3b27','#2b1a11',3);line(w.x-w.r-4,w.y,w.x+w.r+4,w.y,9,'#6e5431')}
+function drawRope(L){const w=L.wheel,p=L.pulley,wrap=w.r*.78;const ax=w.x+Math.cos(S.wheel.a+Math.PI/2)*wrap,ay=w.y+Math.sin(S.wheel.a+Math.PI/2)*wrap;const weightY=L.baseY-15+S.weight.y,cupY=L.baseY-90-S.cup.y;ctx.strokeStyle=S.ropeTension>.2?'#e2cf9f':'#b9a77f';ctx.lineWidth=8;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(ax,ay);ctx.quadraticCurveTo(lerp(ax,p.x,.52),Math.min(ay,p.y)-40*(1-S.ropeTension),p.x-p.r,p.y);ctx.arc(p.x,p.y,p.r,Math.PI,0);ctx.lineTo(L.cupX,cupY-58);ctx.stroke();ctx.beginPath();ctx.moveTo(w.x-wrap,w.y);ctx.quadraticCurveTo(L.weightX-45,L.baseY-200,L.weightX,weightY-45);ctx.stroke();for(let i=0;i<9;i++){const t=i/8,x=lerp(p.x+p.r,L.cupX,t),y=lerp(p.y,cupY-58,t);line(x-3,y,x+3,y,1,'#765f3c88')}}
+function drawPulley(L){const p=L.pulley;circle(p.x,p.y,p.r+8,'#4a3322','#2a1a11',4);circle(p.x,p.y,p.r,brassGradient(p.x,p.y,p.r),'#6c4e26',4);circle(p.x,p.y,8,'#2c2018','#e0bf70',3);line(p.x,p.y-p.r-18,p.x,75,11,'#6a422a')}
+function drawCupWeight(L){const cupY=L.baseY-90-S.cup.y,wy=L.baseY-15+S.weight.y;ctx.save();ctx.translate(L.cupX,cupY);ctx.shadowColor='#000b';ctx.shadowBlur=14;ctx.beginPath();ctx.moveTo(-45,-55);ctx.lineTo(45,-55);ctx.lineTo(33,26);ctx.quadraticCurveTo(0,43,-33,26);ctx.closePath();ctx.fillStyle=woodGradient(-45,-55,90,100);ctx.fill();ctx.strokeStyle='#3d2517';ctx.lineWidth=5;ctx.stroke();ctx.shadowColor='transparent';line(-28,-55,-18,-78,5,'#cbb98d');line(28,-55,18,-78,5,'#cbb98d');ctx.restore();ctx.save();ctx.translate(L.weightX,wy);ctx.shadowColor='#000b';ctx.shadowBlur=12;roundRect(-33,-45,66,88,9,brassGradient(0,0,55),'#4d381e',5);ctx.shadowColor='transparent';circle(0,-51,10,'#7b5b2e','#e2bd65',3);line(-17,-20,17,-20,2,'#f1d98566');ctx.restore()}
+function drawReveal(L){const alpha=clamp((S.cup.y-45*L.scale)/(30*L.scale),0,1);if(alpha<=0)return;ctx.save();ctx.globalAlpha=ease(alpha);const x=W*.73,y=H*.24,w=Math.min(260,W*.24),h=118;ctx.shadowColor='#f7d48688';ctx.shadowBlur=35;roundRect(x,y,w,h,6,'#ddc58e','#6a4a29',3);ctx.shadowColor='transparent';ctx.fillStyle='#342216';ctx.font='italic 17px Georgia';ctx.fillText('“Tension is visible',x+20,y+36);ctx.fillText('before motion begins.”',x+20,y+62);ctx.font='12px Arial';ctx.fillStyle='#65462d';ctx.fillText('Look for slack, strain, and settling.',x+20,y+92);ctx.restore()}
+function draw(){const L=layout();drawBackground(L);drawRamp(L);drawLever(L);drawWheel(L);drawRope(L);drawPulley(L);drawCupWeight(L);drawBall(L);drawReveal(L);const deg=Math.round(-S.rampAngle*180/Math.PI);readout.innerHTML=`ramp ${deg}°<br>ball ${Math.round(S.ball.v)} px/s<br>wheel ${S.wheel.w.toFixed(2)} rad/s<br>rope ${Math.round(S.ropeTension*100)}% tension`}
+function frame(t){const dt=(t-lastT)/1000;lastT=t;update(dt);draw();requestAnimationFrame(frame)}
+reset();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
